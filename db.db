@@ -1,0 +1,87 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.Asistencia (
+  id_asistencia integer GENERATED ALWAYS AS IDENTITY NOT NULL,
+  id_perfil uuid,
+  id_evento integer NOT NULL,
+  asistio integer CHECK (asistio >= 0 AND asistio <= 1),
+  CONSTRAINT Asistencia_pkey PRIMARY KEY (id_asistencia),
+  CONSTRAINT Asistencia_id_perfil_fkey FOREIGN KEY (id_perfil) REFERENCES public.Perfil(id_perfil),
+  CONSTRAINT Asistencia_id_evento_fkey FOREIGN KEY (id_evento) REFERENCES public.Evento(id_evento)
+);
+CREATE TABLE public.Calificacion (
+  id_calificacion integer GENERATED ALWAYS AS IDENTITY NOT NULL,
+  id_perfil uuid,
+  id_evento integer NOT NULL,
+  calificacion integer NOT NULL CHECK (calificacion >= 1 AND calificacion <= 5),
+  comentario text,
+  fecha timestamp with time zone DEFAULT now(),
+  CONSTRAINT Calificacion_pkey PRIMARY KEY (id_calificacion),
+  CONSTRAINT Calificacion_id_perfil_fkey FOREIGN KEY (id_perfil) REFERENCES public.Perfil(id_perfil),
+  CONSTRAINT Calificacion_id_evento_fkey FOREIGN KEY (id_evento) REFERENCES public.Evento(id_evento)
+);
+CREATE TABLE public.Categoria (
+  id_categoria bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  nombre text NOT NULL UNIQUE,
+  descripcion text,
+  CONSTRAINT Categoria_pkey PRIMARY KEY (id_categoria)
+);
+CREATE TABLE public.Evento (
+  id_evento bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  id_organizador uuid NOT NULL DEFAULT auth.uid(),
+  fecha timestamp with time zone NOT NULL,
+  fecha_publicado timestamp with time zone,
+  entrada_libre boolean NOT NULL DEFAULT true,
+  descripcion text,
+  validado boolean NOT NULL DEFAULT false,
+  lugar text NOT NULL,
+  flyer text,
+  nombre text NOT NULL,
+  resumen_comentarios text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  imagen text,
+  CONSTRAINT Evento_pkey PRIMARY KEY (id_evento),
+  CONSTRAINT Evento_id_organizador_fkey FOREIGN KEY (id_organizador) REFERENCES public.Perfil(id_perfil)
+);
+CREATE TABLE public.Evento_Categoria (
+  id_evento bigint NOT NULL,
+  id_categoria bigint NOT NULL,
+  CONSTRAINT Evento_Categoria_pkey PRIMARY KEY (id_evento, id_categoria),
+  CONSTRAINT Evento_Categoria_id_evento_fkey FOREIGN KEY (id_evento) REFERENCES public.Evento(id_evento),
+  CONSTRAINT Evento_Categoria_id_categoria_fkey FOREIGN KEY (id_categoria) REFERENCES public.Categoria(id_categoria)
+);
+CREATE TABLE public.FCMToken (
+  id_fcmtoken bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  id_perfil uuid NOT NULL DEFAULT auth.uid(),
+  dispositivo USER-DEFINED NOT NULL DEFAULT 'android'::tipo_dispositivo,
+  token text NOT NULL UNIQUE,
+  CONSTRAINT FCMToken_pkey PRIMARY KEY (id_fcmtoken),
+  CONSTRAINT FCMToken_id_perfil_fkey FOREIGN KEY (id_perfil) REFERENCES public.Perfil(id_perfil)
+);
+CREATE TABLE public.Interes_Perfil (
+  id_perfil uuid NOT NULL DEFAULT auth.uid(),
+  id_interes bigint NOT NULL,
+  CONSTRAINT Interes_Perfil_pkey PRIMARY KEY (id_perfil, id_interes),
+  CONSTRAINT Interes_Perfil_id_perfil_fkey FOREIGN KEY (id_perfil) REFERENCES public.Perfil(id_perfil),
+  CONSTRAINT Interes_Perfil_id_interes_fkey1 FOREIGN KEY (id_interes) REFERENCES public.Categoria(id_categoria)
+);
+CREATE TABLE public.Notificacion (
+  id_notificacion bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  id_perfil uuid NOT NULL DEFAULT auth.uid(),
+  titulo text NOT NULL,
+  cuerpo text,
+  imagen text,
+  CONSTRAINT Notificacion_pkey PRIMARY KEY (id_notificacion),
+  CONSTRAINT Notificacion_id_perfil_fkey FOREIGN KEY (id_perfil) REFERENCES public.Perfil(id_perfil)
+);
+CREATE TABLE public.Perfil (
+  id_perfil uuid NOT NULL DEFAULT auth.uid(),
+  nombre text NOT NULL,
+  avatar text,
+  url_qr text UNIQUE,
+  rol USER-DEFINED NOT NULL,
+  CONSTRAINT Perfil_pkey PRIMARY KEY (id_perfil),
+  CONSTRAINT Perfil_id_perfil_fkey FOREIGN KEY (id_perfil) REFERENCES auth.users(id)
+);
