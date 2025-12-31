@@ -80,7 +80,7 @@ CREATE TABLE public.Perfil (
   id_perfil uuid NOT NULL DEFAULT auth.uid(),
   nombre text NOT NULL,
   avatar text,
-  url_qr text NOT NULL UNIQUE,
+  url_qr text UNIQUE,
   rol USER-DEFINED NOT NULL,
   CONSTRAINT Perfil_pkey PRIMARY KEY (id_perfil),
   CONSTRAINT Perfil_id_perfil_fkey FOREIGN KEY (id_perfil) REFERENCES auth.users(id)
