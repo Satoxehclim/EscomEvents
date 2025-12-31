@@ -40,12 +40,39 @@ class CategoriaModel {
   }
 
   factory CategoriaModel.fromMap(Map<String, dynamic> map) {
+    final nombreCategoria = map['nombre'] as String;
     return CategoriaModel(
       id: map['id_categoria'] as int,
-      nombre: map['nombre'] as String,
-      icono: map['icono'] != null ? IconData(map['icono'] as int, fontFamily: 'MaterialIcons') : null,
+      nombre: nombreCategoria,
+      icono: _asignarIconoPorNombre(nombreCategoria),
       descripcion: map['descripcion'] != null ? map['descripcion'] as String : null,
     );
+  }
+
+  /// Función auxiliar para mapear texto a Iconos de Flutter
+  static IconData _asignarIconoPorNombre(String nombre) {
+    // Normalizamos el texto a minúsculas y quitamos espacios
+    final nombreNormalizado = nombre.toLowerCase().trim();
+
+    // Verificamos palabras clave (contains) para ser más flexibles
+    if (nombreNormalizado.contains('académico') || nombreNormalizado.contains('academico')) {
+      return Icons.school; // RF-007, Público objetivo Estudiantes
+    } else if (nombreNormalizado.contains('cultural')) {
+      return Icons.theater_comedy; // RF-007
+    } else if (nombreNormalizado.contains('deportivo') || nombreNormalizado.contains('deporte')) {
+      return Icons.sports_soccer; // RF-007
+    } else if (nombreNormalizado.contains('tecnología') || nombreNormalizado.contains('hackathon')) {
+      return Icons.computer; // Sugerido para ESCOM
+    } else if (nombreNormalizado.contains('institucional')) {
+      return Icons.account_balance; // Sugerido para Administrativos
+    } else if (nombreNormalizado.contains('taller') || nombreNormalizado.contains('curso')) {
+      return Icons.build;
+    } else if (nombreNormalizado.contains('empleo') || nombreNormalizado.contains('reclutamiento')) {
+      return Icons.work;
+    }
+    
+    // Ícono por defecto si no encuentra coincidencia
+    return Icons.event_note; 
   }
 
   String toJson() => json.encode(toMap());
