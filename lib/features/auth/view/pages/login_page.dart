@@ -39,8 +39,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     if (!mounted) return;
 
     if (exito) {
-      final perfil = ref.read(perfilActualProvider);
-      context.go(RutasApp.bienvenida, extra: perfil?.rol);
+      context.go(RutasApp.inicio);
     }
   }
 

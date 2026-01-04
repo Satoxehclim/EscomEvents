@@ -1,8 +1,7 @@
 import 'package:escomevents_app/core/utils/paleta.dart';
-import 'package:escomevents_app/features/auth/view/pages/home_page.dart';
-import 'package:escomevents_app/features/eventos/views/pages/eventos.dart';
-import 'package:escomevents_app/features/eventos/views/pages/mis_eventos_page.dart';
+import 'package:escomevents_app/core/utils/router.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 // Roles de usuario disponibles en la aplicación.
 enum RolUsuario { estudiante, organizador, administrador }
@@ -14,41 +13,56 @@ class BienvenidaPage extends StatefulWidget {
   // Rol del usuario actual. Por defecto es [RolUsuario.estudiante].
   final RolUsuario rol;
 
+  // Widget hijo que se muestra en el cuerpo del Scaffold.
+  final Widget child;
+
   const BienvenidaPage({
-    Key? key,
+    super.key,
     this.rol = RolUsuario.estudiante,
-  }) : super(key: key);
+    required this.child,
+  });
 
   @override
   State<BienvenidaPage> createState() => _BienvenidaPageState();
 }
 
 class _BienvenidaPageState extends State<BienvenidaPage> {
-  int _indiceActual = 0;
-
-  // Obtiene las páginas disponibles según el rol del usuario.
-  List<Widget> _obtenerPaginas() {
-    // Páginas base para todos los roles.
-    final paginasBase = <Widget>[
-      const HomePage(),
-      const EventsScreen(),
+  // Obtiene las rutas disponibles según el rol del usuario.
+  List<String> _obtenerRutas() {
+    final rutasBase = <String>[
+      RutasApp.inicio,
+      RutasApp.eventos,
     ];
 
-    // Agrega páginas adicionales según el rol.
+    // Agrega rutas adicionales según el rol.
     switch (widget.rol) {
       case RolUsuario.organizador:
-        paginasBase.add(MisEventosPage(rol: widget.rol));
+        rutasBase.add(RutasApp.misEventos);
         break;
       case RolUsuario.administrador:
-        // TODO: Agregar páginas específicas para administradors.
-        // Ejemplo: paginasBase.add(const ValidarEventosPage());
+        // TODO: Agregar rutas específicas para administradores.
         break;
       case RolUsuario.estudiante:
-        // Los estudiantes solo tienen las páginas base.
+        // Los estudiantes solo tienen las rutas base.
         break;
     }
 
-    return paginasBase;
+    return rutasBase;
+  }
+
+  // Obtiene el índice actual basado en la ruta.
+  int _obtenerIndiceActual(String ubicacion) {
+    final rutas = _obtenerRutas();
+    final indice = rutas.indexWhere((ruta) => ubicacion.startsWith(ruta));
+    return indice >= 0 ? indice : 0;
+  }
+
+  // Navega a la ruta correspondiente al índice.
+  void _navegarA(int indice) {
+    final rutas = _obtenerRutas();
+    if (indice >= 0 && indice < rutas.length) {
+      context.go(rutas[indice]);
+    }
   }
 
   // Obtiene los items de navegación según el rol del usuario.
@@ -79,13 +93,7 @@ class _BienvenidaPageState extends State<BienvenidaPage> {
         );
         break;
       case RolUsuario.administrador:
-        // TODO: Agregar items específicos para administradors.
-        // Ejemplo:
-        // itemsBase.add(const BottomNavigationBarItem(
-        //   icon: Icon(Icons.verified_outlined),
-        //   activeIcon: Icon(Icons.verified),
-        //   label: 'Validar',
-        // ));
+        // TODO: Agregar items específicos para administradores.
         break;
       case RolUsuario.estudiante:
         // Los estudiantes solo tienen los items base.
@@ -99,14 +107,12 @@ class _BienvenidaPageState extends State<BienvenidaPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final paginas = _obtenerPaginas();
     final itemsNavegacion = _obtenerItemsNavegacion();
+    final ubicacionActual = GoRouterState.of(context).uri.path;
+    final indiceActual = _obtenerIndiceActual(ubicacionActual);
 
     return Scaffold(
-      body: IndexedStack(
-        index: _indiceActual,
-        children: paginas,
-      ),
+      body: widget.child,
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           boxShadow: [
@@ -118,8 +124,8 @@ class _BienvenidaPageState extends State<BienvenidaPage> {
           ],
         ),
         child: BottomNavigationBar(
-          currentIndex: _indiceActual,
-          onTap: (indice) => setState(() => _indiceActual = indice),
+          currentIndex: indiceActual,
+          onTap: _navegarA,
           type: BottomNavigationBarType.fixed,
           backgroundColor:
               isDark ? AppColors.darkSurface : AppColors.lightBackground,
