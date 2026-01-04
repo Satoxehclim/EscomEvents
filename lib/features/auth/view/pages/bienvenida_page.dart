@@ -4,7 +4,7 @@ import 'package:escomevents_app/features/eventos/views/pages/eventos.dart';
 import 'package:flutter/material.dart';
 
 /// Roles de usuario disponibles en la aplicación.
-enum RolUsuario { estudiante, organizador, administrativo }
+enum RolUsuario { estudiante, organizador, administrador }
 
 /// Página principal de bienvenida con navegación inferior.
 ///
@@ -39,8 +39,8 @@ class _BienvenidaPageState extends State<BienvenidaPage> {
         // TODO: Agregar páginas específicas para organizadores.
         // Ejemplo: paginasBase.add(const MisEventosPage());
         break;
-      case RolUsuario.administrativo:
-        // TODO: Agregar páginas específicas para administrativos.
+      case RolUsuario.administrador:
+        // TODO: Agregar páginas específicas para administradors.
         // Ejemplo: paginasBase.add(const ValidarEventosPage());
         break;
       case RolUsuario.estudiante:
@@ -78,8 +78,8 @@ class _BienvenidaPageState extends State<BienvenidaPage> {
         //   label: 'Mis Eventos',
         // ));
         break;
-      case RolUsuario.administrativo:
-        // TODO: Agregar items específicos para administrativos.
+      case RolUsuario.administrador:
+        // TODO: Agregar items específicos para administradors.
         // Ejemplo:
         // itemsBase.add(const BottomNavigationBarItem(
         //   icon: Icon(Icons.verified_outlined),

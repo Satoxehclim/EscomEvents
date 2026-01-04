@@ -56,8 +56,8 @@ class PerfilModel {
     switch (rol.toLowerCase()) {
       case 'organizador':
         return RolUsuario.organizador;
-      case 'administrativo':
-        return RolUsuario.administrativo;
+      case 'administrador':
+        return RolUsuario.administrador;
       case 'estudiante':
       default:
         return RolUsuario.estudiante;

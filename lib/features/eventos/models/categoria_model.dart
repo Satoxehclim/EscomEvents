@@ -64,7 +64,7 @@ class CategoriaModel {
     } else if (nombreNormalizado.contains('tecnología') || nombreNormalizado.contains('hackathon')) {
       return Icons.computer; // Sugerido para ESCOM
     } else if (nombreNormalizado.contains('institucional')) {
-      return Icons.account_balance; // Sugerido para Administrativos
+      return Icons.account_balance; // Sugerido para administradors
     } else if (nombreNormalizado.contains('taller') || nombreNormalizado.contains('curso')) {
       return Icons.build;
     } else if (nombreNormalizado.contains('empleo') || nombreNormalizado.contains('reclutamiento')) {
