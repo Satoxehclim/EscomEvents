@@ -1,38 +1,38 @@
 import 'package:escomevents_app/core/utils/paleta.dart';
 import 'package:flutter/material.dart';
 
-/// Tipos de botón disponibles.
+// Tipos de botón disponibles.
 enum CustomButtonType { primary, secondary, outlined, text }
 
-/// Botón reutilizable que sigue la estética de la aplicación.
-///
-/// Permite personalizar el tipo, tamaño, iconos y estado de carga.
+// Botón reutilizable que sigue la estética de la aplicación.
+//
+// Permite personalizar el tipo, tamaño, iconos y estado de carga.
 class CustomButton extends StatelessWidget {
-  /// Texto del botón.
+  // Texto del botón.
   final String texto;
 
-  /// Callback al presionar el botón.
+  // Callback al presionar el botón.
   final VoidCallback? onPressed;
 
-  /// Tipo de botón (primary, secondary, outlined, text).
+  // Tipo de botón (primary, secondary, outlined, text).
   final CustomButtonType tipo;
 
-  /// Icono opcional al inicio del botón.
+  // Icono opcional al inicio del botón.
   final IconData? iconoInicio;
 
-  /// Icono opcional al final del botón.
+  // Icono opcional al final del botón.
   final IconData? iconoFin;
 
-  /// Indica si el botón ocupa todo el ancho disponible.
+  // Indica si el botón ocupa todo el ancho disponible.
   final bool anchoCompleto;
 
-  /// Indica si el botón está en estado de carga.
+  // Indica si el botón está en estado de carga.
   final bool cargando;
 
-  /// Padding interno del botón.
+  // Padding interno del botón.
   final EdgeInsetsGeometry? padding;
 
-  /// Radio del borde del botón.
+  // Radio del borde del botón.
   final double borderRadius;
 
   const CustomButton({

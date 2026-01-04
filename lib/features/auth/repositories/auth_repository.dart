@@ -2,32 +2,32 @@ import 'package:escomevents_app/features/auth/models/perfil_model.dart';
 import 'package:escomevents_app/features/auth/view/pages/bienvenida_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Repositorio abstracto para operaciones de autenticación.
+// Repositorio abstracto para operaciones de autenticación.
 abstract class AuthRepository {
-  /// Inicia sesión con correo y contraseña.
+  // Inicia sesión con correo y contraseña.
   Future<PerfilModel> iniciarSesion({
     required String correo,
     required String contrasena,
   });
 
-  /// Registra un nuevo usuario.
+  // Registra un nuevo usuario.
   Future<PerfilModel> registrar({
     required String nombre,
     required String correo,
     required String contrasena,
   });
 
-  /// Cierra la sesión del usuario actual.
+  // Cierra la sesión del usuario actual.
   Future<void> cerrarSesion();
 
-  /// Obtiene el perfil del usuario actual si está autenticado.
+  // Obtiene el perfil del usuario actual si está autenticado.
   Future<PerfilModel?> obtenerPerfilActual();
 
-  /// Verifica si hay una sesión activa.
+  // Verifica si hay una sesión activa.
   bool get haySessionActiva;
 }
 
-/// Implementación del repositorio de autenticación usando Supabase.
+// Implementación del repositorio de autenticación usando Supabase.
 class AuthRepositoryImpl implements AuthRepository {
   final SupabaseClient _supabase;
 
@@ -133,7 +133,7 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   bool get haySessionActiva => _supabase.auth.currentSession != null;
 
-  /// Obtiene el perfil de un usuario por su ID.
+  // Obtiene el perfil de un usuario por su ID.
   Future<PerfilModel> _obtenerPerfil(String idUsuario) async {
     final respuesta = await _supabase
         .from('Perfil')
@@ -144,7 +144,7 @@ class AuthRepositoryImpl implements AuthRepository {
     return PerfilModel.fromJson(respuesta);
   }
 
-  /// Maneja errores de autenticación de Supabase.
+  // Maneja errores de autenticación de Supabase.
   Exception _manejarErrorAuth(AuthException e) {
     print(e);
     switch (e.message) {

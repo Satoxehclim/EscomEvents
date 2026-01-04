@@ -3,14 +3,14 @@ import 'package:escomevents_app/features/auth/view/pages/login_page.dart';
 import 'package:escomevents_app/features/auth/view/pages/registro_page.dart';
 import 'package:go_router/go_router.dart';
 
-/// Nombres de las rutas de la aplicación.
+// Nombres de las rutas de la aplicación.
 abstract class RutasApp {
   static const String login = '/login';
   static const String registro = '/registro';
   static const String bienvenida = '/';
 }
 
-/// Configuración del enrutador de la aplicación.
+// Configuración del enrutador de la aplicación.
 final GoRouter appRouter = GoRouter(
   initialLocation: RutasApp.login,
   routes: [

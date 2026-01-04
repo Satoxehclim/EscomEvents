@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-/// Página de registro de nuevos usuarios.
+// Página de registro de nuevos usuarios.
 class RegistroPage extends ConsumerStatefulWidget {
   const RegistroPage({Key? key}) : super(key: key);
 

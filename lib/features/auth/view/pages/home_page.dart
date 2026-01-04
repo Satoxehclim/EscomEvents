@@ -5,9 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-/// Página de inicio (Home) de la aplicación.
-///
-/// Muestra un resumen general para el usuario.
+// Página de inicio (Home) de la aplicación.
+//
+// Muestra un resumen general para el usuario.
 class HomePage extends ConsumerWidget {
   const HomePage({Key? key}) : super(key: key);
 
@@ -228,7 +228,7 @@ class HomePage extends ConsumerWidget {
   }
 }
 
-/// Tarjeta de acceso rápido reutilizable.
+// Tarjeta de acceso rápido reutilizable.
 class _TarjetaAccesoRapido extends StatelessWidget {
   final IconData icono;
   final String titulo;

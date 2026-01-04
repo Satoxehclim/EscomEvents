@@ -49,7 +49,7 @@ class CategoriaModel {
     );
   }
 
-  /// Función auxiliar para mapear texto a Iconos de Flutter
+  // Función auxiliar para mapear texto a Iconos de Flutter
   static IconData _asignarIconoPorNombre(String nombre) {
     // Normalizamos el texto a minúsculas y quitamos espacios
     final nombreNormalizado = nombre.toLowerCase().trim();
