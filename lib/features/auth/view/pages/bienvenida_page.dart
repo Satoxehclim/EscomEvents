@@ -1,16 +1,17 @@
 import 'package:escomevents_app/core/utils/paleta.dart';
 import 'package:escomevents_app/features/auth/view/pages/home_page.dart';
 import 'package:escomevents_app/features/eventos/views/pages/eventos.dart';
+import 'package:escomevents_app/features/eventos/views/pages/mis_eventos_page.dart';
 import 'package:flutter/material.dart';
 
-/// Roles de usuario disponibles en la aplicación.
+// Roles de usuario disponibles en la aplicación.
 enum RolUsuario { estudiante, organizador, administrador }
 
-/// Página principal de bienvenida con navegación inferior.
-///
-/// La navegación y contenido puede variar según el [rol] del usuario.
+// Página principal de bienvenida con navegación inferior.
+//
+// La navegación y contenido puede variar según el [rol] del usuario.
 class BienvenidaPage extends StatefulWidget {
-  /// Rol del usuario actual. Por defecto es [RolUsuario.estudiante].
+  // Rol del usuario actual. Por defecto es [RolUsuario.estudiante].
   final RolUsuario rol;
 
   const BienvenidaPage({
@@ -25,7 +26,7 @@ class BienvenidaPage extends StatefulWidget {
 class _BienvenidaPageState extends State<BienvenidaPage> {
   int _indiceActual = 0;
 
-  /// Obtiene las páginas disponibles según el rol del usuario.
+  // Obtiene las páginas disponibles según el rol del usuario.
   List<Widget> _obtenerPaginas() {
     // Páginas base para todos los roles.
     final paginasBase = <Widget>[
@@ -36,8 +37,7 @@ class _BienvenidaPageState extends State<BienvenidaPage> {
     // Agrega páginas adicionales según el rol.
     switch (widget.rol) {
       case RolUsuario.organizador:
-        // TODO: Agregar páginas específicas para organizadores.
-        // Ejemplo: paginasBase.add(const MisEventosPage());
+        paginasBase.add(MisEventosPage(rol: widget.rol));
         break;
       case RolUsuario.administrador:
         // TODO: Agregar páginas específicas para administradors.
@@ -51,7 +51,7 @@ class _BienvenidaPageState extends State<BienvenidaPage> {
     return paginasBase;
   }
 
-  /// Obtiene los items de navegación según el rol del usuario.
+  // Obtiene los items de navegación según el rol del usuario.
   List<BottomNavigationBarItem> _obtenerItemsNavegacion() {
     // Items base para todos los roles.
     final itemsBase = <BottomNavigationBarItem>[
@@ -70,13 +70,13 @@ class _BienvenidaPageState extends State<BienvenidaPage> {
     // Agrega items adicionales según el rol.
     switch (widget.rol) {
       case RolUsuario.organizador:
-        // TODO: Agregar items específicos para organizadores.
-        // Ejemplo:
-        // itemsBase.add(const BottomNavigationBarItem(
-        //   icon: Icon(Icons.add_circle_outline),
-        //   activeIcon: Icon(Icons.add_circle),
-        //   label: 'Mis Eventos',
-        // ));
+        itemsBase.add(
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.folder_outlined),
+            activeIcon: Icon(Icons.folder),
+            label: 'Mis Eventos',
+          ),
+        );
         break;
       case RolUsuario.administrador:
         // TODO: Agregar items específicos para administradors.
