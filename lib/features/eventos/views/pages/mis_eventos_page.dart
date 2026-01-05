@@ -1,15 +1,26 @@
 import 'package:escomevents_app/core/utils/paleta.dart';
+import 'package:escomevents_app/core/view/widgets/custom_button.dart';
+import 'package:escomevents_app/core/view/widgets/custom_dropdown.dart';
 import 'package:escomevents_app/features/auth/view/pages/bienvenida_page.dart';
 import 'package:escomevents_app/features/eventos/models/evento_model.dart';
 import 'package:escomevents_app/features/eventos/views/widgets/evento_card.dart';
 import 'package:flutter/material.dart';
 
-// Tipos de filtro disponibles para "Mis Eventos".
-enum FiltroMisEventos {
+// Tipos de filtro de estado para "Mis Eventos".
+enum FiltroEstado {
+  todos,
   proximos,
   pasados,
   pendientes,
   aprobados,
+}
+
+// Tipos de ordenamiento para "Mis Eventos".
+enum OrdenarPor {
+  masRecientes,
+  masAntiguos,
+  masProximos,
+  masLejanos,
 }
 
 // Página para que los organizadores vean sus eventos.
@@ -30,152 +41,294 @@ class MisEventosPage extends StatefulWidget {
 }
 
 class _MisEventosPageState extends State<MisEventosPage> {
-  FiltroMisEventos _filtroActual = FiltroMisEventos.proximos;
+  // Estado de los filtros.
+  OrdenarPor _ordenarPor = OrdenarPor.masRecientes;
+  FiltroEstado _filtroEstado = FiltroEstado.todos;
+  String? _categoriaSeleccionada;
 
-  // Obtiene los filtros disponibles según el rol del usuario.
-  List<FiltroMisEventos> _obtenerFiltrosDisponibles() {
-    final filtrosBase = <FiltroMisEventos>[
-      FiltroMisEventos.proximos,
-      FiltroMisEventos.pasados,
+  // Items para el dropdown de ordenamiento.
+  List<DropdownItem<OrdenarPor>> _obtenerItemsOrdenamiento() {
+    return const [
+      DropdownItem(
+        valor: OrdenarPor.masRecientes,
+        etiqueta: 'Más recientes',
+        icono: Icons.schedule,
+      ),
+      DropdownItem(
+        valor: OrdenarPor.masAntiguos,
+        etiqueta: 'Más antiguos',
+        icono: Icons.history,
+      ),
+      DropdownItem(
+        valor: OrdenarPor.masProximos,
+        etiqueta: 'Más próximos',
+        icono: Icons.event_available,
+      ),
+      DropdownItem(
+        valor: OrdenarPor.masLejanos,
+        etiqueta: 'Más lejanos',
+        icono: Icons.event_note,
+      ),
+    ];
+  }
+
+  // Items para el dropdown de estado.
+  List<DropdownItem<FiltroEstado>> _obtenerItemsEstado() {
+    final itemsBase = <DropdownItem<FiltroEstado>>[
+      const DropdownItem(
+        valor: FiltroEstado.todos,
+        etiqueta: 'Todos',
+        icono: Icons.all_inclusive,
+      ),
+      const DropdownItem(
+        valor: FiltroEstado.proximos,
+        etiqueta: 'Próximos',
+        icono: Icons.upcoming_outlined,
+      ),
+      const DropdownItem(
+        valor: FiltroEstado.pasados,
+        etiqueta: 'Pasados',
+        icono: Icons.history,
+      ),
     ];
 
     // Pendientes y Aprobados solo para organizadores y administradores.
     if (widget.rol == RolUsuario.organizador ||
         widget.rol == RolUsuario.administrador) {
-      filtrosBase.addAll([
-        FiltroMisEventos.pendientes,
-        FiltroMisEventos.aprobados,
+      itemsBase.addAll(const [
+        DropdownItem(
+          valor: FiltroEstado.pendientes,
+          etiqueta: 'Pendientes',
+          icono: Icons.pending_actions,
+        ),
+        DropdownItem(
+          valor: FiltroEstado.aprobados,
+          etiqueta: 'Aprobados',
+          icono: Icons.check_circle_outline,
+        ),
       ]);
     }
 
-    return filtrosBase;
+    return itemsBase;
   }
 
-  // Obtiene el nombre legible del filtro.
-  String _obtenerNombreFiltro(FiltroMisEventos filtro) {
+  // TODO: Obtener categorías desde el repositorio.
+  List<DropdownItem<String>> _obtenerItemsCategorias() {
+    return const [
+      // Placeholder - conectar con el repositorio de categorías.
+    ];
+  }
+
+  // Obtiene el nombre legible del filtro de estado.
+  String _obtenerNombreFiltroEstado(FiltroEstado filtro) {
     switch (filtro) {
-      case FiltroMisEventos.proximos:
+      case FiltroEstado.todos:
+        return 'Todos';
+      case FiltroEstado.proximos:
         return 'Próximos';
-      case FiltroMisEventos.pasados:
+      case FiltroEstado.pasados:
         return 'Pasados';
-      case FiltroMisEventos.pendientes:
+      case FiltroEstado.pendientes:
         return 'Pendientes';
-      case FiltroMisEventos.aprobados:
+      case FiltroEstado.aprobados:
         return 'Aprobados';
     }
   }
 
-  // Obtiene el icono del filtro.
-  IconData _obtenerIconoFiltro(FiltroMisEventos filtro) {
+  // Obtiene el icono del filtro de estado.
+  IconData _obtenerIconoFiltroEstado(FiltroEstado filtro) {
     switch (filtro) {
-      case FiltroMisEventos.proximos:
+      case FiltroEstado.todos:
+        return Icons.all_inclusive;
+      case FiltroEstado.proximos:
         return Icons.upcoming_outlined;
-      case FiltroMisEventos.pasados:
+      case FiltroEstado.pasados:
         return Icons.history;
-      case FiltroMisEventos.pendientes:
+      case FiltroEstado.pendientes:
         return Icons.pending_actions;
-      case FiltroMisEventos.aprobados:
+      case FiltroEstado.aprobados:
         return Icons.check_circle_outline;
     }
   }
 
-  // Filtra los eventos según el filtro seleccionado.
-  List<EventModel> _filtrarEventos(List<EventModel> eventos) {
+  // Filtra y ordena los eventos.
+  List<EventModel> _filtrarYOrdenarEventos(List<EventModel> eventos) {
     final ahora = DateTime.now();
 
-    switch (_filtroActual) {
-      case FiltroMisEventos.proximos:
-        return eventos
-            .where((e) => e.fecha.isAfter(ahora) && e.validado)
-            .toList();
-      case FiltroMisEventos.pasados:
-        return eventos
+    // Filtrar por estado.
+    List<EventModel> eventosFiltrados;
+    switch (_filtroEstado) {
+      case FiltroEstado.todos:
+        eventosFiltrados = List.from(eventos);
+        break;
+      case FiltroEstado.proximos:
+        eventosFiltrados =
+            eventos.where((e) => e.fecha.isAfter(ahora) && e.validado).toList();
+        break;
+      case FiltroEstado.pasados:
+        eventosFiltrados = eventos
             .where((e) => e.fecha.isBefore(ahora) && e.validado)
             .toList();
-      case FiltroMisEventos.pendientes:
-        return eventos.where((e) => !e.validado).toList();
-      case FiltroMisEventos.aprobados:
-        return eventos.where((e) => e.validado).toList();
+        break;
+      case FiltroEstado.pendientes:
+        eventosFiltrados = eventos.where((e) => !e.validado).toList();
+        break;
+      case FiltroEstado.aprobados:
+        eventosFiltrados = eventos.where((e) => e.validado).toList();
+        break;
     }
+
+    // TODO: Filtrar por categoría cuando se implemente.
+
+    // Ordenar.
+    switch (_ordenarPor) {
+      case OrdenarPor.masRecientes:
+        eventosFiltrados.sort((a, b) => b.fechaCreacion.compareTo(a.fechaCreacion));
+        break;
+      case OrdenarPor.masAntiguos:
+        eventosFiltrados.sort((a, b) => a.fechaCreacion.compareTo(b.fechaCreacion));
+        break;
+      case OrdenarPor.masProximos:
+        eventosFiltrados.sort((a, b) => a.fecha.compareTo(b.fecha));
+        break;
+      case OrdenarPor.masLejanos:
+        eventosFiltrados.sort((a, b) => b.fecha.compareTo(a.fecha));
+        break;
+    }
+
+    return eventosFiltrados;
   }
 
   // Muestra el modal de filtros.
   void _mostrarFiltros() {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final filtrosDisponibles = _obtenerFiltrosDisponibles();
+
+    // Variables temporales para el modal.
+    OrdenarPor ordenarPorTemp = _ordenarPor;
+    FiltroEstado filtroEstadoTemp = _filtroEstado;
+    String? categoriaTemp = _categoriaSeleccionada;
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade400,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
               ),
-              const SizedBox(height: 20),
-              Text(
-                'Filtrar eventos',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-              ...filtrosDisponibles.map((filtro) {
-                final seleccionado = filtro == _filtroActual;
-                return ListTile(
-                  leading: Icon(
-                    _obtenerIconoFiltro(filtro),
-                    color: seleccionado
-                        ? (isDark
-                            ? AppColors.darkPrimary
-                            : AppColors.lightPrimary)
-                        : Colors.grey,
-                  ),
-                  title: Text(
-                    _obtenerNombreFiltro(filtro),
-                    style: TextStyle(
-                      fontWeight:
-                          seleccionado ? FontWeight.bold : FontWeight.normal,
-                      color: seleccionado
-                          ? (isDark
-                              ? AppColors.darkPrimary
-                              : AppColors.lightPrimary)
-                          : null,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Indicador de arrastre.
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade400,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
-                  trailing: seleccionado
-                      ? Icon(
-                          Icons.check,
-                          color: isDark
-                              ? AppColors.darkPrimary
-                              : AppColors.lightPrimary,
-                        )
-                      : null,
-                  onTap: () {
-                    setState(() => _filtroActual = filtro);
-                    Navigator.pop(context);
-                  },
-                );
-              }),
-              const SizedBox(height: 10),
-            ],
-          ),
+                  const SizedBox(height: 20),
+
+                  // Título.
+                  Text(
+                    'Filtrar eventos',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Dropdown de ordenamiento.
+                  CustomDropdown<OrdenarPor>(
+                    etiqueta: 'Ordenar por',
+                    textoHint: 'Selecciona un orden',
+                    iconoPrefijo: Icons.sort,
+                    valorSeleccionado: ordenarPorTemp,
+                    elementos: _obtenerItemsOrdenamiento(),
+                    onChanged: (valor) {
+                      setModalState(() => ordenarPorTemp = valor!);
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Dropdown de estado.
+                  CustomDropdown<FiltroEstado>(
+                    etiqueta: 'Estado',
+                    textoHint: 'Selecciona un estado',
+                    iconoPrefijo: Icons.filter_alt_outlined,
+                    valorSeleccionado: filtroEstadoTemp,
+                    elementos: _obtenerItemsEstado(),
+                    onChanged: (valor) {
+                      setModalState(() => filtroEstadoTemp = valor!);
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Dropdown de categoría.
+                  CustomDropdown<String>(
+                    etiqueta: 'Categoría',
+                    textoHint: 'Selecciona una categoría',
+                    iconoPrefijo: Icons.category_outlined,
+                    valorSeleccionado: categoriaTemp,
+                    elementos: _obtenerItemsCategorias(),
+                    onChanged: (valor) {
+                      setModalState(() => categoriaTemp = valor);
+                    },
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Botones de acción.
+                  Row(
+                    children: [
+                      Expanded(
+                        child: CustomButton(
+                          texto: 'Limpiar',
+                          tipo: CustomButtonType.outlined,
+                          onPressed: () {
+                            setModalState(() {
+                              ordenarPorTemp = OrdenarPor.masRecientes;
+                              filtroEstadoTemp = FiltroEstado.todos;
+                              categoriaTemp = null;
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: CustomButton(
+                          texto: 'Aplicar',
+                          tipo: CustomButtonType.primary,
+                          onPressed: () {
+                            setState(() {
+                              _ordenarPor = ordenarPorTemp;
+                              _filtroEstado = filtroEstadoTemp;
+                              _categoriaSeleccionada = categoriaTemp;
+                            });
+                            Navigator.pop(context);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                ],
+              ),
+            );
+          },
         );
       },
     );
@@ -321,7 +474,7 @@ class _MisEventosPageState extends State<MisEventosPage> {
       ),
     ];
 
-    final eventosFiltrados = _filtrarEventos(eventosMock);
+    final eventosFiltrados = _filtrarYOrdenarEventos(eventosMock);
 
     return Scaffold(
       body: SafeArea(
@@ -396,20 +549,22 @@ class _MisEventosPageState extends State<MisEventosPage> {
 
   // Construye los chips de filtro activo.
   Widget _construirChipsFiltro(ThemeData theme, bool isDark) {
+    final itemsEstado = _obtenerItemsEstado();
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
-          children: _obtenerFiltrosDisponibles().map((filtro) {
-            final seleccionado = filtro == _filtroActual;
+          children: itemsEstado.map((item) {
+            final seleccionado = item.valor == _filtroEstado;
             return Padding(
               padding: const EdgeInsets.only(right: 8),
               child: FilterChip(
                 selected: seleccionado,
-                label: Text(_obtenerNombreFiltro(filtro)),
+                label: Text(item.etiqueta),
                 avatar: Icon(
-                  _obtenerIconoFiltro(filtro),
+                  item.icono,
                   size: 18,
                   color: seleccionado
                       ? Colors.white
@@ -434,7 +589,7 @@ class _MisEventosPageState extends State<MisEventosPage> {
                       isDark ? AppColors.darkPrimary : AppColors.lightPrimary,
                 ),
                 onSelected: (selected) {
-                  setState(() => _filtroActual = filtro);
+                  setState(() => _filtroEstado = item.valor);
                 },
               ),
             );
@@ -457,7 +612,7 @@ class _MisEventosPageState extends State<MisEventosPage> {
           ),
           const SizedBox(height: 16),
           Text(
-            'No tienes eventos ${_obtenerNombreFiltro(_filtroActual).toLowerCase()}',
+            'No tienes eventos ${_obtenerNombreFiltroEstado(_filtroEstado).toLowerCase()}',
             style: theme.textTheme.titleMedium?.copyWith(
               color: Colors.grey,
             ),
