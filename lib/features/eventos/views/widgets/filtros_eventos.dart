@@ -1,7 +1,10 @@
 import 'package:escomevents_app/core/utils/paleta.dart';
 import 'package:escomevents_app/core/view/widgets/custom_button.dart';
 import 'package:escomevents_app/core/view/widgets/custom_dropdown.dart';
+import 'package:escomevents_app/features/eventos/models/categoria_model.dart';
+import 'package:escomevents_app/features/eventos/viewmodel/categoria_viewmodel.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // Tipos de filtro de estado para eventos.
 enum FiltroEstado {
@@ -24,7 +27,7 @@ enum OrdenarPor {
 class FiltrosEventos {
   final OrdenarPor ordenarPor;
   final FiltroEstado filtroEstado;
-  final String? categoria;
+  final CategoriaModel? categoria;
 
   const FiltrosEventos({
     this.ordenarPor = OrdenarPor.masRecientes,
@@ -35,12 +38,13 @@ class FiltrosEventos {
   FiltrosEventos copyWith({
     OrdenarPor? ordenarPor,
     FiltroEstado? filtroEstado,
-    String? categoria,
+    CategoriaModel? categoria,
+    bool limpiarCategoria = false,
   }) {
     return FiltrosEventos(
       ordenarPor: ordenarPor ?? this.ordenarPor,
       filtroEstado: filtroEstado ?? this.filtroEstado,
-      categoria: categoria ?? this.categoria,
+      categoria: limpiarCategoria ? null : (categoria ?? this.categoria),
     );
   }
 
@@ -57,7 +61,7 @@ class FiltrosEventos {
 // Modal de filtros reutilizable para eventos.
 //
 // Puede mostrar diferentes opciones de estado según [mostrarFiltrosAvanzados].
-class ModalFiltrosEventos extends StatefulWidget {
+class ModalFiltrosEventos extends ConsumerStatefulWidget {
   // Filtros actuales.
   final FiltrosEventos filtrosActuales;
 
@@ -75,7 +79,8 @@ class ModalFiltrosEventos extends StatefulWidget {
   });
 
   @override
-  State<ModalFiltrosEventos> createState() => _ModalFiltrosEventosState();
+  ConsumerState<ModalFiltrosEventos> createState() =>
+      _ModalFiltrosEventosState();
 
   // Muestra el modal de filtros.
   static void mostrar({
@@ -104,10 +109,10 @@ class ModalFiltrosEventos extends StatefulWidget {
   }
 }
 
-class _ModalFiltrosEventosState extends State<ModalFiltrosEventos> {
+class _ModalFiltrosEventosState extends ConsumerState<ModalFiltrosEventos> {
   late OrdenarPor _ordenarPor;
   late FiltroEstado _filtroEstado;
-  late String? _categoria;
+  late CategoriaModel? _categoria;
 
   @override
   void initState() {
@@ -182,11 +187,16 @@ class _ModalFiltrosEventosState extends State<ModalFiltrosEventos> {
     return itemsBase;
   }
 
-  // TODO: Obtener categorías desde el repositorio.
-  List<DropdownItem<String>> _obtenerItemsCategorias() {
-    return const [
-      // Placeholder - conectar con el repositorio de categorías.
-    ];
+  // Obtiene las categorías desde el caché.
+  List<DropdownItem<CategoriaModel>> _obtenerItemsCategorias() {
+    final categorias = ref.watch(listaCategoriasCacheProvider);
+    return categorias.map((cat) {
+      return DropdownItem(
+        valor: cat,
+        etiqueta: cat.nombre,
+        icono: cat.icono ?? Icons.category,
+      );
+    }).toList();
   }
 
   void _limpiarFiltros() {
@@ -270,7 +280,7 @@ class _ModalFiltrosEventosState extends State<ModalFiltrosEventos> {
           const SizedBox(height: 16),
 
           // Dropdown de categoría.
-          CustomDropdown<String>(
+          CustomDropdown<CategoriaModel>(
             etiqueta: 'Categoría',
             textoHint: 'Selecciona una categoría',
             iconoPrefijo: Icons.category_outlined,

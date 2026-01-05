@@ -1,6 +1,7 @@
 import 'package:escomevents_app/features/auth/models/auth_state.dart';
 import 'package:escomevents_app/features/auth/models/perfil_model.dart';
 import 'package:escomevents_app/features/auth/repositories/auth_repository.dart';
+import 'package:escomevents_app/features/eventos/viewmodel/categoria_viewmodel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // Provider del repositorio de autenticación.
@@ -43,6 +44,8 @@ class AuthNotifier extends Notifier<AuthState> {
       final perfil = await _repository.obtenerPerfilActual();
       if (perfil != null) {
         state = AuthExitoso(perfil: perfil);
+        // Carga las categorías en caché.
+        await ref.read(categoriasProvider.notifier).cargarCategorias();
       } else {
         state = const AuthNoAutenticado();
       }
@@ -64,6 +67,8 @@ class AuthNotifier extends Notifier<AuthState> {
         contrasena: contrasena,
       );
       state = AuthExitoso(perfil: perfil);
+      // Carga las categorías en caché.
+      await ref.read(categoriasProvider.notifier).cargarCategorias();
       return true;
     } catch (e) {
       state = AuthError(mensaje: e.toString().replaceAll('Exception: ', ''));
@@ -98,6 +103,8 @@ class AuthNotifier extends Notifier<AuthState> {
     state = const AuthCargando();
     try {
       await _repository.cerrarSesion();
+      // Limpia el caché de categorías.
+      ref.read(categoriasProvider.notifier).limpiarCache();
       state = const AuthNoAutenticado();
     } catch (e) {
       state = AuthError(mensaje: e.toString().replaceAll('Exception: ', ''));
