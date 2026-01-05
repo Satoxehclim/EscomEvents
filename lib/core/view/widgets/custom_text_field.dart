@@ -11,6 +11,8 @@ class CustomTextField extends StatelessWidget {
   final VoidCallback? onTap;
   final bool readOnly;
   final ValueChanged<String>? onChanged;
+  final int? maxLines;
+  final int? minLines;
 
   const CustomTextField({
     Key? key,
@@ -24,6 +26,8 @@ class CustomTextField extends StatelessWidget {
     this.onTap,
     this.readOnly = false,
     this.onChanged,
+    this.maxLines = 1,
+    this.minLines,
   }) : super(key: key);
 
   @override
@@ -36,14 +40,19 @@ class CustomTextField extends StatelessWidget {
     final primaryColor = isDark ? const Color(0xFF2979FF) : const Color(0xFF4F46E5);     // darkPrimary : lightPrimary
     final errorColor = isDark ? const Color(0xFFCF6679) : const Color(0xFFF43F5E);       // Error
 
+    // Para campos multilinea, el icono debe estar arriba.
+    final esMultilinea = maxLines != null && maxLines! > 1;
+
     return TextFormField(
       controller: controller,
       obscureText: obscureText,
       validator: validator,
-      keyboardType: keyboardType,
+      keyboardType: esMultilinea ? TextInputType.multiline : keyboardType,
       onTap: onTap,
       readOnly: readOnly,
       onChanged: onChanged,
+      maxLines: maxLines,
+      minLines: minLines,
       style: theme.textTheme.bodyMedium, // Estilo del texto que escribe el usuario
       cursorColor: primaryColor, // El cursor toma el color primario
       decoration: InputDecoration(
@@ -59,7 +68,19 @@ class CustomTextField extends StatelessWidget {
         
         // 2. Iconos integrados
         prefixIcon: prefixIcon != null 
-            ? Icon(prefixIcon, color: Colors.grey, size: 22) 
+            ? Padding(
+                padding: EdgeInsets.only(
+                  left: 12,
+                  right: 8,
+                  //top: esMultilinea ? 16 : 0,
+                ),
+                child: Align(
+                  alignment: esMultilinea ? Alignment.topCenter : Alignment.center,
+                  widthFactor: 1.0,
+                  heightFactor: esMultilinea ? null : 1.0,
+                  child: Icon(prefixIcon, color: Colors.grey, size: 22),
+                ),
+              )
             : null,
         suffixIcon: suffixIcon,
 

@@ -3,6 +3,7 @@ import 'package:escomevents_app/features/auth/view/pages/bienvenida_page.dart';
 import 'package:escomevents_app/features/eventos/models/evento_model.dart';
 import 'package:escomevents_app/features/eventos/views/widgets/evento_card.dart';
 import 'package:escomevents_app/features/eventos/views/widgets/filtros_eventos.dart';
+import 'package:escomevents_app/features/eventos/views/widgets/formulario_nuevo_evento.dart';
 import 'package:flutter/material.dart';
 
 // Página para que los organizadores vean sus eventos.
@@ -144,35 +145,11 @@ class _MisEventosPageState extends State<MisEventosPage> {
                     ],
                   ),
                   const SizedBox(height: 20),
-                  // TODO: Implementar formulario de creación de evento.
+                  // Formulario de creación de evento.
                   Expanded(
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.construction,
-                            size: 64,
-                            color: isDark
-                                ? AppColors.darkSecondary
-                                : AppColors.lightSecondary,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Formulario en construcción',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              color: Colors.grey,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Próximamente podrás crear eventos aquí',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: Colors.grey.shade500,
-                            ),
-                          ),
-                        ],
-                      ),
+                    child: FormularioNuevoEvento(
+                      onGuardar: () => Navigator.pop(context),
+                      onCancelar: () => Navigator.pop(context),
                     ),
                   ),
                 ],
