@@ -12,12 +12,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
-/// Formulario para crear un nuevo evento.
+// Formulario para crear un nuevo evento.
+//
+// Incluye campos para nombre, fecha, lugar, descripción, entrada libre,
+// selección de imagen y flyer, y selector de categorías.
 class FormularioNuevoEvento extends ConsumerStatefulWidget {
-  /// Callback cuando se guarda el evento.
+  // Callback cuando se guarda el evento.
   final VoidCallback? onGuardar;
 
-  /// Callback cuando se cancela.
+  // Callback cuando se cancela.
   final VoidCallback? onCancelar;
 
   const FormularioNuevoEvento({
@@ -48,6 +51,8 @@ class _FormularioNuevoEventoState extends ConsumerState<FormularioNuevoEvento> {
   File? _flyerSeleccionado;
   List<CategoriaModel> _categoriasSeleccionadas = [];
   bool _guardando = false;
+
+  // Error de validación para categorías.
   String? _errorCategorias;
 
   @override
@@ -58,6 +63,7 @@ class _FormularioNuevoEventoState extends ConsumerState<FormularioNuevoEvento> {
     super.dispose();
   }
 
+  // Selecciona una fecha.
   Future<void> _seleccionarFecha() async {
     final fecha = await showDatePicker(
       context: context,
@@ -72,6 +78,7 @@ class _FormularioNuevoEventoState extends ConsumerState<FormularioNuevoEvento> {
     }
   }
 
+  // Selecciona una hora.
   Future<void> _seleccionarHora() async {
     final hora = await showTimePicker(
       context: context,
@@ -120,6 +127,7 @@ class _FormularioNuevoEventoState extends ConsumerState<FormularioNuevoEvento> {
     }
   }
 
+  // Elimina una imagen seleccionada.
   void _eliminarImagen({required bool esFlyer}) {
     setState(() {
       if (esFlyer) {
@@ -130,6 +138,7 @@ class _FormularioNuevoEventoState extends ConsumerState<FormularioNuevoEvento> {
     });
   }
 
+  // Alterna la selección de una categoría.
   void _alternarCategoria(CategoriaModel categoria) {
     setState(() {
       if (_categoriasSeleccionadas.contains(categoria)) {
@@ -137,23 +146,27 @@ class _FormularioNuevoEventoState extends ConsumerState<FormularioNuevoEvento> {
       } else {
         _categoriasSeleccionadas.add(categoria);
       }
+      // Limpia el error si ya hay categorías seleccionadas.
       if (_categoriasSeleccionadas.isNotEmpty) {
         _errorCategorias = null;
       }
     });
   }
 
+  // Valida y guarda el formulario.
   Future<void> _guardar() async {
     // Valida las categorías.
     if (_categoriasSeleccionadas.isEmpty) {
       setState(() => _errorCategorias = 'Selecciona al menos una categoría');
     }
 
+    // Valida el formulario.
     if (!_formKey.currentState!.validate() ||
         _categoriasSeleccionadas.isEmpty) {
       return;
     }
 
+    // Obtiene el id del organizador.
     final perfil = ref.read(perfilActualProvider);
     if (perfil == null) {
       _mostrarError('No se pudo obtener el perfil del usuario');
@@ -163,6 +176,7 @@ class _FormularioNuevoEventoState extends ConsumerState<FormularioNuevoEvento> {
     setState(() => _guardando = true);
 
     try {
+      // Combina fecha y hora.
       final fechaCompleta = DateTime(
         _fechaEvento!.year,
         _fechaEvento!.month,

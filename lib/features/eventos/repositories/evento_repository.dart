@@ -543,31 +543,33 @@ class EventoRepositoryImpl implements EventoRepository {
           .update(datosActualizacion)
           .eq('id_evento', eventoOriginal.id);
 
-      // Actualiza las categorías solo si cambiaron.
+      // Actualiza las categorías usando diferencias de sets.
       final idsOriginales = categoriasOriginales.map((c) => c.id).toSet();
       final idsNuevos = categorias.map((c) => c.id).toSet();
 
-      // Verifica si las categorías cambiaron.
-      final categoriasCambiaron = !_setIguales(idsOriginales, idsNuevos);
+      // Calcula las categorías a eliminar y a agregar.
+      final categoriasAEliminar = idsOriginales.difference(idsNuevos);
+      final categoriasAAgregar = idsNuevos.difference(idsOriginales);
 
-      if (categoriasCambiaron) {
-        // Elimina las relaciones existentes.
+      // Elimina las categorías que ya no están.
+      if (categoriasAEliminar.isNotEmpty) {
         await _supabase
             .from('Evento_Categoria')
             .delete()
-            .eq('id_evento', eventoOriginal.id);
+            .eq('id_evento', eventoOriginal.id)
+            .inFilter('id_categoria', categoriasAEliminar.toList());
+      }
 
-        // Inserta las nuevas relaciones.
-        if (categorias.isNotEmpty) {
-          final relacionesCategorias = categorias
-              .map((cat) => {
-                    'id_evento': eventoOriginal.id,
-                    'id_categoria': cat.id,
-                  })
-              .toList();
+      // Inserta las nuevas categorías.
+      if (categoriasAAgregar.isNotEmpty) {
+        final nuevasRelaciones = categoriasAAgregar
+            .map((idCat) => {
+                  'id_evento': eventoOriginal.id,
+                  'id_categoria': idCat,
+                })
+            .toList();
 
-          await _supabase.from('Evento_Categoria').insert(relacionesCategorias);
-        }
+        await _supabase.from('Evento_Categoria').insert(nuevasRelaciones);
       }
 
       // Retorna el evento actualizado.
@@ -671,12 +673,6 @@ class EventoRepositoryImpl implements EventoRepository {
     } catch (_) {
       // Ignora errores al eliminar imágenes.
     }
-  }
-
-  // Compara si dos conjuntos de enteros son iguales.
-  bool _setIguales(Set<int> a, Set<int> b) {
-    if (a.length != b.length) return false;
-    return a.containsAll(b);
   }
 
   @override
