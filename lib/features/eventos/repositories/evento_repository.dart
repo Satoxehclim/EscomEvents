@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:escomevents_app/features/eventos/models/categoria_model.dart';
 import 'package:escomevents_app/features/eventos/models/evento_model.dart';
+import 'package:escomevents_app/features/eventos/models/filtro_eventos_model.dart';
 import 'package:path/path.dart' as path;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -11,6 +12,19 @@ class _ResultadoSubida {
   final String ruta;
 
   const _ResultadoSubida({required this.url, required this.ruta});
+}
+
+// Resultado paginado que incluye los datos y si hay más páginas.
+class ResultadoPaginado<T> {
+  final List<T> datos;
+  final bool hayMas;
+  final int paginaActual;
+
+  const ResultadoPaginado({
+    required this.datos,
+    required this.hayMas,
+    required this.paginaActual,
+  });
 }
 
 // Repositorio abstracto para operaciones con eventos.
@@ -28,8 +42,13 @@ abstract class EventoRepository {
     required List<CategoriaModel> categorias,
   });
 
-  // Obtiene los eventos de un organizador.
-  Future<List<EventModel>> obtenerEventosPorOrganizador(String idOrganizador);
+  // Obtiene los eventos de un organizador con paginación y filtros.
+  Future<ResultadoPaginado<EventModel>> obtenerEventosPorOrganizador(
+    String idOrganizador, {
+    int pagina = 0,
+    int tamanoPagina = 10,
+    FiltroEventos? filtros,
+  });
 
   // Sube una imagen al storage.
   Future<String?> subirImagen({
@@ -273,22 +292,99 @@ class EventoRepositoryImpl implements EventoRepository {
   }
 
   @override
-  Future<List<EventModel>> obtenerEventosPorOrganizador(
-    String idOrganizador,
-  ) async {
+  Future<ResultadoPaginado<EventModel>> obtenerEventosPorOrganizador(
+    String idOrganizador, {
+    int pagina = 0,
+    int tamanoPagina = 10,
+    FiltroEventos? filtros,
+  }) async {
     try {
-      final respuesta = await _supabase
-          .from('Evento')
-          .select('''
+      final desde = pagina * tamanoPagina;
+      final hasta = desde + tamanoPagina - 1;
+      final ahora = DateTime.now().toIso8601String();
+
+      // Construye el query base.
+      var query = _supabase.from('Evento').select('''
             *,
             categorias:Evento_Categoria(
               categoria:Categoria(*)
             )
-          ''')
-          .eq('id_organizador', idOrganizador)
-          .order('fecha', ascending: false);
+          ''').eq('id_organizador', idOrganizador);
 
-      return (respuesta as List).map((json) {
+      // Aplica filtros de estado.
+      switch (filtros?.estado) {
+        case FiltroEstado.proximos:
+          query = query.gte('fecha', ahora);
+          break;
+        case FiltroEstado.pasados:
+          query = query.lt('fecha', ahora).eq('validado', true);
+          break;
+        case FiltroEstado.pendientes:
+          query = query.eq('validado', false);
+          break;
+        case FiltroEstado.aprobados:
+          query = query.eq('validado', true);
+          break;
+        case FiltroEstado.todos:
+        case null:
+          // Sin filtro de estado.
+          break;
+      }
+
+      // Filtra por categoría si está especificada.
+      if (filtros?.idCategoria != null) {
+        // Obtiene los ids de eventos que tienen la categoría.
+        final eventosConCategoria = await _supabase
+            .from('Evento_Categoria')
+            .select('id_evento')
+            .eq('id_categoria', filtros!.idCategoria!);
+
+        final idsEventos = (eventosConCategoria as List)
+            .map((e) => e['id_evento'] as int)
+            .toList();
+
+        if (idsEventos.isEmpty) {
+          // No hay eventos con esa categoría.
+          return ResultadoPaginado(
+            datos: [],
+            hayMas: false,
+            paginaActual: pagina,
+          );
+        }
+
+        query = query.inFilter('id_evento', idsEventos);
+      }
+
+      // Determina el ordenamiento.
+      final orden = filtros?.orden ?? OrdenEvento.masRecientes;
+      String columnaOrden;
+      bool ascendente;
+
+      switch (orden) {
+        case OrdenEvento.masRecientes:
+          columnaOrden = 'created_at';
+          ascendente = false;
+          break;
+        case OrdenEvento.masAntiguos:
+          columnaOrden = 'created_at';
+          ascendente = true;
+          break;
+        case OrdenEvento.masProximos:
+          columnaOrden = 'fecha';
+          ascendente = true;
+          break;
+        case OrdenEvento.masLejanos:
+          columnaOrden = 'fecha';
+          ascendente = false;
+          break;
+      }
+
+      // Aplica ordenamiento y paginación.
+      final respuesta = await query
+          .order(columnaOrden, ascending: ascendente)
+          .range(desde, hasta);
+
+      final eventos = (respuesta as List).map((json) {
         // Transforma las categorías anidadas.
         final categoriasRaw = json['categorias'] as List? ?? [];
         final categorias = categoriasRaw
@@ -302,6 +398,15 @@ class EventoRepositoryImpl implements EventoRepository {
           'categorias': null, // Evita el parsing automático.
         }).copyWith(categorias: categorias);
       }).toList();
+
+      // Si obtuvimos menos eventos que el tamaño de página, no hay más.
+      final hayMas = eventos.length == tamanoPagina;
+
+      return ResultadoPaginado(
+        datos: eventos,
+        hayMas: hayMas,
+        paginaActual: pagina,
+      );
     } on PostgrestException catch (e) {
       throw Exception('Error al obtener eventos: ${e.message}');
     }

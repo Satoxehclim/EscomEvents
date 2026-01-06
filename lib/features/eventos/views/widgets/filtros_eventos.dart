@@ -2,58 +2,47 @@ import 'package:escomevents_app/core/utils/paleta.dart';
 import 'package:escomevents_app/core/view/widgets/custom_button.dart';
 import 'package:escomevents_app/core/view/widgets/custom_dropdown.dart';
 import 'package:escomevents_app/features/eventos/models/categoria_model.dart';
+import 'package:escomevents_app/features/eventos/models/filtro_eventos_model.dart';
 import 'package:escomevents_app/features/eventos/viewmodel/categoria_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// Tipos de filtro de estado para eventos.
-enum FiltroEstado {
-  todos,
-  proximos,
-  pasados,
-  pendientes,
-  aprobados,
-}
-
-// Tipos de ordenamiento para eventos.
-enum OrdenarPor {
-  masRecientes,
-  masAntiguos,
-  masProximos,
-  masLejanos,
-}
-
-// Modelo para almacenar el estado de los filtros.
-class FiltrosEventos {
-  final OrdenarPor ordenarPor;
-  final FiltroEstado filtroEstado;
+// Modelo extendido de filtros que incluye la categoría completa para UI.
+class FiltrosEventosUI {
+  final FiltroEstado estado;
+  final OrdenEvento orden;
   final CategoriaModel? categoria;
 
-  const FiltrosEventos({
-    this.ordenarPor = OrdenarPor.masRecientes,
-    this.filtroEstado = FiltroEstado.todos,
+  const FiltrosEventosUI({
+    this.estado = FiltroEstado.todos,
+    this.orden = OrdenEvento.masRecientes,
     this.categoria,
   });
 
-  FiltrosEventos copyWith({
-    OrdenarPor? ordenarPor,
-    FiltroEstado? filtroEstado,
+  FiltrosEventosUI copyWith({
+    FiltroEstado? estado,
+    OrdenEvento? orden,
     CategoriaModel? categoria,
     bool limpiarCategoria = false,
   }) {
-    return FiltrosEventos(
-      ordenarPor: ordenarPor ?? this.ordenarPor,
-      filtroEstado: filtroEstado ?? this.filtroEstado,
+    return FiltrosEventosUI(
+      estado: estado ?? this.estado,
+      orden: orden ?? this.orden,
       categoria: limpiarCategoria ? null : (categoria ?? this.categoria),
     );
   }
 
   // Limpia los filtros a valores por defecto.
-  FiltrosEventos limpiar({FiltroEstado estadoPorDefecto = FiltroEstado.todos}) {
-    return FiltrosEventos(
-      ordenarPor: OrdenarPor.masRecientes,
-      filtroEstado: estadoPorDefecto,
-      categoria: null,
+  FiltrosEventosUI limpiar() {
+    return const FiltrosEventosUI();
+  }
+
+  // Convierte a FiltroEventos para el repositorio.
+  FiltroEventos toFiltroEventos() {
+    return FiltroEventos(
+      estado: estado,
+      orden: orden,
+      idCategoria: categoria?.id,
     );
   }
 }
@@ -63,13 +52,13 @@ class FiltrosEventos {
 // Puede mostrar diferentes opciones de estado según [mostrarFiltrosAvanzados].
 class ModalFiltrosEventos extends ConsumerStatefulWidget {
   // Filtros actuales.
-  final FiltrosEventos filtrosActuales;
+  final FiltrosEventosUI filtrosActuales;
 
   // Si es true, muestra las opciones "Pendientes" y "Aprobados".
   final bool mostrarFiltrosAvanzados;
 
   // Callback cuando se aplican los filtros.
-  final ValueChanged<FiltrosEventos> onAplicar;
+  final ValueChanged<FiltrosEventosUI> onAplicar;
 
   const ModalFiltrosEventos({
     super.key,
@@ -85,9 +74,9 @@ class ModalFiltrosEventos extends ConsumerStatefulWidget {
   // Muestra el modal de filtros.
   static void mostrar({
     required BuildContext context,
-    required FiltrosEventos filtrosActuales,
+    required FiltrosEventosUI filtrosActuales,
     bool mostrarFiltrosAvanzados = false,
-    required ValueChanged<FiltrosEventos> onAplicar,
+    required ValueChanged<FiltrosEventosUI> onAplicar,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -110,38 +99,38 @@ class ModalFiltrosEventos extends ConsumerStatefulWidget {
 }
 
 class _ModalFiltrosEventosState extends ConsumerState<ModalFiltrosEventos> {
-  late OrdenarPor _ordenarPor;
-  late FiltroEstado _filtroEstado;
+  late OrdenEvento _orden;
+  late FiltroEstado _estado;
   late CategoriaModel? _categoria;
 
   @override
   void initState() {
     super.initState();
-    _ordenarPor = widget.filtrosActuales.ordenarPor;
-    _filtroEstado = widget.filtrosActuales.filtroEstado;
+    _orden = widget.filtrosActuales.orden;
+    _estado = widget.filtrosActuales.estado;
     _categoria = widget.filtrosActuales.categoria;
   }
 
   // Items para el dropdown de ordenamiento.
-  List<DropdownItem<OrdenarPor>> _obtenerItemsOrdenamiento() {
+  List<DropdownItem<OrdenEvento>> _obtenerItemsOrdenamiento() {
     return const [
       DropdownItem(
-        valor: OrdenarPor.masRecientes,
+        valor: OrdenEvento.masRecientes,
         etiqueta: 'Más recientes (fecha de creación)',
         icono: Icons.schedule,
       ),
       DropdownItem(
-        valor: OrdenarPor.masAntiguos,
+        valor: OrdenEvento.masAntiguos,
         etiqueta: 'Más antiguos (fecha de creación)',
         icono: Icons.history,
       ),
       DropdownItem(
-        valor: OrdenarPor.masProximos,
+        valor: OrdenEvento.masProximos,
         etiqueta: 'Más próximos (fecha del evento)',
         icono: Icons.event_available,
       ),
       DropdownItem(
-        valor: OrdenarPor.masLejanos,
+        valor: OrdenEvento.masLejanos,
         etiqueta: 'Más lejanos (fecha del evento)',
         icono: Icons.event_note,
       ),
@@ -201,16 +190,16 @@ class _ModalFiltrosEventosState extends ConsumerState<ModalFiltrosEventos> {
 
   void _limpiarFiltros() {
     setState(() {
-      _ordenarPor = OrdenarPor.masRecientes;
-      _filtroEstado = FiltroEstado.todos;
+      _orden = OrdenEvento.masRecientes;
+      _estado = FiltroEstado.todos;
       _categoria = null;
     });
   }
 
   void _aplicarFiltros() {
-    widget.onAplicar(FiltrosEventos(
-      ordenarPor: _ordenarPor,
-      filtroEstado: _filtroEstado,
+    widget.onAplicar(FiltrosEventosUI(
+      orden: _orden,
+      estado: _estado,
       categoria: _categoria,
     ));
     Navigator.pop(context);
@@ -254,14 +243,14 @@ class _ModalFiltrosEventosState extends ConsumerState<ModalFiltrosEventos> {
           const SizedBox(height: 24),
 
           // Dropdown de ordenamiento.
-          CustomDropdown<OrdenarPor>(
+          CustomDropdown<OrdenEvento>(
             etiqueta: 'Ordenar por',
             textoHint: 'Selecciona un orden',
             iconoPrefijo: Icons.sort,
-            valorSeleccionado: _ordenarPor,
+            valorSeleccionado: _orden,
             elementos: _obtenerItemsOrdenamiento(),
             onChanged: (valor) {
-              setState(() => _ordenarPor = valor!);
+              setState(() => _orden = valor!);
             },
           ),
           const SizedBox(height: 16),
@@ -271,10 +260,10 @@ class _ModalFiltrosEventosState extends ConsumerState<ModalFiltrosEventos> {
             etiqueta: 'Estado',
             textoHint: 'Selecciona un estado',
             iconoPrefijo: Icons.filter_alt_outlined,
-            valorSeleccionado: _filtroEstado,
+            valorSeleccionado: _estado,
             elementos: _obtenerItemsEstado(),
             onChanged: (valor) {
-              setState(() => _filtroEstado = valor!);
+              setState(() => _estado = valor!);
             },
           ),
           const SizedBox(height: 16),
@@ -426,21 +415,5 @@ class ChipsFiltroEstado extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-// Obtiene el nombre legible del filtro de estado.
-String obtenerNombreFiltroEstado(FiltroEstado filtro) {
-  switch (filtro) {
-    case FiltroEstado.todos:
-      return 'Todos';
-    case FiltroEstado.proximos:
-      return 'Próximos';
-    case FiltroEstado.pasados:
-      return 'Pasados';
-    case FiltroEstado.pendientes:
-      return 'Pendientes';
-    case FiltroEstado.aprobados:
-      return 'Aprobados';
   }
 }

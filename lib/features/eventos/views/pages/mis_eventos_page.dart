@@ -2,6 +2,7 @@ import 'package:escomevents_app/core/utils/paleta.dart';
 import 'package:escomevents_app/features/auth/view/pages/bienvenida_page.dart';
 import 'package:escomevents_app/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:escomevents_app/features/eventos/models/evento_model.dart';
+import 'package:escomevents_app/features/eventos/models/filtro_eventos_model.dart';
 import 'package:escomevents_app/features/eventos/viewmodel/evento_viewmodel.dart';
 import 'package:escomevents_app/features/eventos/views/widgets/evento_card.dart';
 import 'package:escomevents_app/features/eventos/views/widgets/filtros_eventos.dart';
@@ -28,7 +29,10 @@ class MisEventosPage extends ConsumerStatefulWidget {
 
 class _MisEventosPageState extends ConsumerState<MisEventosPage> {
   // Estado de los filtros.
-  FiltrosEventos _filtros = const FiltrosEventos();
+  FiltrosEventosUI _filtros = const FiltrosEventosUI();
+
+  // Controlador de scroll para detectar cuando se llega al final.
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -37,15 +41,47 @@ class _MisEventosPageState extends ConsumerState<MisEventosPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _cargarEventos();
     });
+
+    // Escucha el scroll para cargar más eventos.
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  // Detecta cuando se acerca al final de la lista.
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      // Carga más eventos si está cerca del final.
+      ref.read(eventosOrganizadorProvider.notifier).cargarMasEventos();
+    }
   }
 
   // Carga los eventos del organizador desde la base de datos.
   Future<void> _cargarEventos() async {
     final perfil = ref.read(perfilActualProvider);
     if (perfil != null) {
-      await ref
-          .read(eventosOrganizadorProvider.notifier)
-          .cargarEventos(perfil.idPerfil);
+      await ref.read(eventosOrganizadorProvider.notifier).cargarEventos(
+            perfil.idPerfil,
+            filtros: _filtros.toFiltroEventos(),
+          );
+    }
+  }
+
+  // Aplica los filtros y recarga los eventos.
+  void _aplicarFiltros(FiltrosEventosUI nuevosFiltros) {
+    setState(() => _filtros = nuevosFiltros);
+    final perfil = ref.read(perfilActualProvider);
+    if (perfil != null) {
+      ref.read(eventosOrganizadorProvider.notifier).cargarEventos(
+            perfil.idPerfil,
+            filtros: nuevosFiltros.toFiltroEventos(),
+          );
     }
   }
 
@@ -54,70 +90,13 @@ class _MisEventosPageState extends ConsumerState<MisEventosPage> {
       widget.rol == RolUsuario.organizador ||
       widget.rol == RolUsuario.administrador;
 
-  // Filtra y ordena los eventos.
-  List<EventModel> _filtrarYOrdenarEventos(List<EventModel> eventos) {
-    final ahora = DateTime.now();
-
-    // Filtrar por estado.
-    List<EventModel> eventosFiltrados;
-    switch (_filtros.filtroEstado) {
-      case FiltroEstado.todos:
-        eventosFiltrados = List.from(eventos);
-        break;
-      case FiltroEstado.proximos:
-        eventosFiltrados =
-            eventos.where((e) => e.fecha.isAfter(ahora)).toList();
-        break;
-      case FiltroEstado.pasados:
-        eventosFiltrados = eventos
-            .where((e) => e.fecha.isBefore(ahora) && e.validado)
-            .toList();
-        break;
-      case FiltroEstado.pendientes:
-        eventosFiltrados = eventos.where((e) => !e.validado).toList();
-        break;
-      case FiltroEstado.aprobados:
-        eventosFiltrados = eventos.where((e) => e.validado).toList();
-        break;
-    }
-
-    // Filtrar por categoría si está seleccionada.
-    if (_filtros.categoria != null) {
-      eventosFiltrados = eventosFiltrados.where((evento) {
-        return evento.categorias.any((cat) => cat.id == _filtros.categoria!.id);
-      }).toList();
-    }
-
-    // Ordenar.
-    switch (_filtros.ordenarPor) {
-      case OrdenarPor.masRecientes:
-        eventosFiltrados
-            .sort((a, b) => b.fechaCreacion.compareTo(a.fechaCreacion));
-        break;
-      case OrdenarPor.masAntiguos:
-        eventosFiltrados
-            .sort((a, b) => a.fechaCreacion.compareTo(b.fechaCreacion));
-        break;
-      case OrdenarPor.masProximos:
-        eventosFiltrados.sort((a, b) => a.fecha.compareTo(b.fecha));
-        break;
-      case OrdenarPor.masLejanos:
-        eventosFiltrados.sort((a, b) => b.fecha.compareTo(a.fecha));
-        break;
-    }
-
-    return eventosFiltrados;
-  }
-
   // Muestra el modal de filtros.
   void _mostrarFiltros() {
     ModalFiltrosEventos.mostrar(
       context: context,
       filtrosActuales: _filtros,
       mostrarFiltrosAvanzados: _mostrarFiltrosAvanzados,
-      onAplicar: (nuevosFiltros) {
-        setState(() => _filtros = nuevosFiltros);
-      },
+      onAplicar: _aplicarFiltros,
     );
   }
 
@@ -204,12 +183,10 @@ class _MisEventosPageState extends ConsumerState<MisEventosPage> {
 
             // Chips de filtro rápido.
             ChipsFiltroEstado(
-              filtroSeleccionado: _filtros.filtroEstado,
+              filtroSeleccionado: _filtros.estado,
               mostrarFiltrosAvanzados: _mostrarFiltrosAvanzados,
               onSeleccionar: (filtro) {
-                setState(() {
-                  _filtros = _filtros.copyWith(filtroEstado: filtro);
-                });
+                _aplicarFiltros(_filtros.copyWith(estado: filtro));
               },
             ),
 
@@ -269,10 +246,25 @@ class _MisEventosPageState extends ConsumerState<MisEventosPage> {
     return switch (estado) {
       EventosOrganizadorInicial() => _construirEstadoCargando(isDark),
       EventosOrganizadorCargando() => _construirEstadoCargando(isDark),
-      EventosOrganizadorError(mensaje: final mensaje) =>
-        _construirEstadoError(mensaje, theme, isDark),
-      EventosOrganizadorExitoso(eventos: final eventos) =>
-        _construirListaEventos(eventos, theme, isDark),
+      EventosOrganizadorError(
+        mensaje: final mensaje,
+        eventosAnteriores: final eventosAnteriores
+      ) =>
+        eventosAnteriores.isNotEmpty
+            ? _construirListaEventos(eventosAnteriores, theme, isDark)
+            : _construirEstadoError(mensaje, theme, isDark),
+      EventosOrganizadorExitoso(
+        eventos: final eventos,
+        hayMas: final hayMas,
+        cargandoMas: final cargandoMas
+      ) =>
+        _construirListaEventos(
+          eventos,
+          theme,
+          isDark,
+          hayMas: hayMas,
+          cargandoMas: cargandoMas,
+        ),
     };
   }
 
@@ -330,27 +322,49 @@ class _MisEventosPageState extends ConsumerState<MisEventosPage> {
     );
   }
 
-  // Construye la lista de eventos filtrados.
+  // Construye la lista de eventos filtrados con paginación.
   Widget _construirListaEventos(
     List<EventModel> eventos,
     ThemeData theme,
-    bool isDark,
-  ) {
-    final eventosFiltrados = _filtrarYOrdenarEventos(eventos);
-
-    if (eventosFiltrados.isEmpty) {
+    bool isDark, {
+    bool hayMas = false,
+    bool cargandoMas = false,
+  }) {
+    if (eventos.isEmpty) {
       return _construirEstadoVacio(theme, isDark);
     }
+
+    // Calcula el número de items (eventos + indicador de carga si aplica).
+    final itemCount = eventos.length + (cargandoMas || hayMas ? 1 : 0);
 
     return RefreshIndicator(
       onRefresh: _cargarEventos,
       color: isDark ? AppColors.darkPrimary : AppColors.lightPrimary,
       child: ListView.builder(
+        controller: _scrollController,
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: eventosFiltrados.length,
+        itemCount: itemCount,
         itemBuilder: (context, index) {
+          // Último item: indicador de carga o espacio.
+          if (index == eventos.length) {
+            if (cargandoMas) {
+              return Padding(
+                padding: const EdgeInsets.all(16),
+                child: Center(
+                  child: CircularProgressIndicator(
+                    color:
+                        isDark ? AppColors.darkPrimary : AppColors.lightPrimary,
+                    strokeWidth: 2,
+                  ),
+                ),
+              );
+            }
+            // Espacio para que el scroll funcione si hay más.
+            return const SizedBox(height: 16);
+          }
+
           return EventCard(
-            event: eventosFiltrados[index],
+            event: eventos[index],
             onTap: () {
               // TODO: Navegación al detalle del evento.
             },
@@ -373,7 +387,7 @@ class _MisEventosPageState extends ConsumerState<MisEventosPage> {
           ),
           const SizedBox(height: 16),
           Text(
-            'No tienes eventos ${obtenerNombreFiltroEstado(_filtros.filtroEstado).toLowerCase()}',
+            'No tienes eventos ${obtenerNombreFiltroEstado(_filtros.estado).toLowerCase()}',
             style: theme.textTheme.titleMedium?.copyWith(
               color: Colors.grey,
             ),
