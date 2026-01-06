@@ -28,17 +28,37 @@ class EventCard extends StatelessWidget {
             // Imagen del Flyer
             Stack(
               children: [
-                Image.network(
-                  event.imageUrl!,
-                  height: 150,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
+                if (event.imageUrl != null && event.imageUrl!.isNotEmpty)
+                  Image.network(
+                    event.imageUrl!,
                     height: 150,
-                    color: Colors.grey.shade300,
-                    child: const Center(child: Icon(Icons.broken_image, size: 50)),
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      height: 150,
+                      color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+                      child: Center(
+                        child: Icon(
+                          event.categorias[0].icono,
+                          size: 50,
+                          color: isDark ? Colors.grey.shade600 : Colors.grey.shade500,
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  Container(
+                    height: 150,
+                    width: double.infinity,
+                    color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+                    child: Center(
+                      child: Icon(
+                        event.categorias[0].icono,
+                        size: 50,
+                        color: isDark ? AppColors.darkPrimary : AppColors.lightPrimary,
+                      ),
+                    ),
                   ),
-                ),
                 // Badge de Fecha (Opcional, estilo visual moderno)
                 Positioned(
                   top: 10,

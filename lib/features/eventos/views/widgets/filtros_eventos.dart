@@ -127,22 +127,22 @@ class _ModalFiltrosEventosState extends ConsumerState<ModalFiltrosEventos> {
     return const [
       DropdownItem(
         valor: OrdenarPor.masRecientes,
-        etiqueta: 'Más recientes',
+        etiqueta: 'Más recientes (fecha de creación)',
         icono: Icons.schedule,
       ),
       DropdownItem(
         valor: OrdenarPor.masAntiguos,
-        etiqueta: 'Más antiguos',
+        etiqueta: 'Más antiguos (fecha de creación)',
         icono: Icons.history,
       ),
       DropdownItem(
         valor: OrdenarPor.masProximos,
-        etiqueta: 'Más próximos',
+        etiqueta: 'Más próximos (fecha del evento)',
         icono: Icons.event_available,
       ),
       DropdownItem(
         valor: OrdenarPor.masLejanos,
-        etiqueta: 'Más lejanos',
+        etiqueta: 'Más lejanos (fecha del evento)',
         icono: Icons.event_note,
       ),
     ];
