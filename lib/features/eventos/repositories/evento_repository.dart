@@ -57,6 +57,9 @@ abstract class EventoRepository {
     required int idEvento,
     required bool esFlyer,
   });
+
+  // Obtiene el nombre del organizador por su ID.
+  Future<String?> obtenerNombreOrganizador(String idOrganizador);
 }
 
 // Implementación del repositorio de eventos usando Supabase.
@@ -86,7 +89,7 @@ class EventoRepositoryImpl implements EventoRepository {
     String? rutaFlyer;
 
     try {
-      // 1. Inserta el evento en la base de datos.
+      // Inserta el evento en la base de datos.
       final datosEvento = {
         'id_organizador': idOrganizador,
         'nombre': nombre,
@@ -105,7 +108,7 @@ class EventoRepositoryImpl implements EventoRepository {
 
       idEvento = (respuestaEvento['id_evento']) as int;
 
-      // 2. Sube las imágenes si existen.
+      // Sube las imágenes si existen.
       String? urlImagen;
       String? urlFlyer;
 
@@ -131,7 +134,7 @@ class EventoRepositoryImpl implements EventoRepository {
         rutaFlyer = resultado.ruta;
       }
 
-      // 3. Actualiza el evento con las URLs de las imágenes.
+      // Actualiza el evento con las URLs de las imágenes.
       if (urlImagen != null || urlFlyer != null) {
         final actualizacion = <String, dynamic>{};
         if (urlImagen != null) actualizacion['imagen'] = urlImagen;
@@ -143,7 +146,7 @@ class EventoRepositoryImpl implements EventoRepository {
             .eq('id_evento', idEvento);
       }
 
-      // 4. Inserta las relaciones con categorías.
+      // Inserta las relaciones con categorías.
       if (categorias.isNotEmpty) {
         final relacionesCategorias = categorias
             .map((cat) => {
@@ -155,7 +158,7 @@ class EventoRepositoryImpl implements EventoRepository {
         await _supabase.from('Evento_Categoria').insert(relacionesCategorias);
       }
 
-      // 5. Retorna el evento creado.
+      // Retorna el evento creado.
       return EventModel(
         id: idEvento,
         idOrganizador: idOrganizador,
@@ -193,7 +196,7 @@ class EventoRepositoryImpl implements EventoRepository {
     String? rutaImagen,
     String? rutaFlyer,
   }) async {
-    // 1. Elimina las imágenes del storage.
+    // Elimina las imágenes del storage.
     final rutasAEliminar = <String>[
       if (rutaFlyer != null) rutaFlyer,
       if (rutaImagen != null) rutaImagen,
@@ -207,7 +210,7 @@ class EventoRepositoryImpl implements EventoRepository {
       }
     }
 
-    // 2. Elimina las relaciones evento-categoría.
+    // Elimina las relaciones evento-categoría.
     if (idEvento != null) {
       try {
         await _supabase
@@ -218,7 +221,7 @@ class EventoRepositoryImpl implements EventoRepository {
         // Ignora errores al eliminar relaciones durante rollback.
       }
 
-      // 3. Elimina el evento.
+      // Elimina el evento.
       try {
         await _supabase.from('Evento').delete().eq('id_evento', idEvento);
       } catch (_) {
@@ -411,4 +414,21 @@ class EventoRepositoryImpl implements EventoRepository {
       throw Exception('Error al obtener eventos: ${e.message}');
     }
   }
+
+  @override
+  Future<String?> obtenerNombreOrganizador(String idOrganizador) async {
+    try {
+      final respuesta = await _supabase
+          .from('Perfil')
+          .select('nombre')
+          .eq('id_perfil', idOrganizador)
+          .maybeSingle();
+
+      if (respuesta == null) return null;
+      return respuesta['nombre'] as String?;
+    } on PostgrestException {
+      return null;
+    }
+  }
+
 }

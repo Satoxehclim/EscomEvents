@@ -4,6 +4,7 @@ import 'package:escomevents_app/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:escomevents_app/features/eventos/models/evento_model.dart';
 import 'package:escomevents_app/features/eventos/models/filtro_eventos_model.dart';
 import 'package:escomevents_app/features/eventos/viewmodel/evento_viewmodel.dart';
+import 'package:escomevents_app/features/eventos/views/pages/detalle_evento_page.dart';
 import 'package:escomevents_app/features/eventos/views/widgets/evento_card.dart';
 import 'package:escomevents_app/features/eventos/views/widgets/filtros_eventos.dart';
 import 'package:escomevents_app/features/eventos/views/widgets/formulario_nuevo_evento.dart';
@@ -100,6 +101,37 @@ class _MisEventosPageState extends ConsumerState<MisEventosPage> {
     );
   }
 
+  // Navega a la página de detalle del evento.
+  Future<void> _navegarADetalle(EventModel evento) async {
+    // Obtiene el nombre del organizador.
+    final repository = ref.read(eventoRepositoryProvider);
+    final nombreOrganizador =
+        await repository.obtenerNombreOrganizador(evento.idOrganizador);
+
+    if (!mounted) return;
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => DetalleEventoPage(
+          evento: evento,
+          rol: widget.rol,
+          origen: OrigenDetalle.misEventos,
+          nombreOrganizador: nombreOrganizador,
+          onEventoActualizado: (eventoActualizado) {
+            // Actualiza el evento en la lista.
+            ref
+                .read(eventosOrganizadorProvider.notifier)
+                .actualizarEvento(eventoActualizado);
+          },
+          onEventoEliminado: () {
+            // Elimina el evento de la lista y de la base de datos.
+            _eliminarEvento(evento);
+          },
+        ),
+      ),
+    );
+  }
+
   // Muestra el formulario para crear un nuevo evento.
   void _mostrarFormularioNuevoEvento() {
     final theme = Theme.of(context);
@@ -108,7 +140,7 @@ class _MisEventosPageState extends ConsumerState<MisEventosPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -365,9 +397,7 @@ class _MisEventosPageState extends ConsumerState<MisEventosPage> {
 
           return EventCard(
             event: eventos[index],
-            onTap: () {
-              // TODO: Navegación al detalle del evento.
-            },
+            onTap: () => _navegarADetalle(eventos[index]),
           );
         },
       ),
