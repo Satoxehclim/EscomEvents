@@ -68,6 +68,13 @@ abstract class EventoRepository {
     FiltroEventos? filtros,
   });
 
+  // Obtiene los eventos públicos (validados) con paginación y filtros.
+  Future<ResultadoPaginado<EventModel>> obtenerEventosPublicos({
+    int pagina = 0,
+    int tamanoPagina = 10,
+    FiltroEventos? filtros,
+  });
+
   // Sube una imagen al storage.
   Future<String?> subirImagen({
     required File archivo,
@@ -446,6 +453,112 @@ class EventoRepositoryImpl implements EventoRepository {
       return respuesta['nombre'] as String?;
     } on PostgrestException {
       return null;
+    }
+  }
+
+  @override
+  Future<ResultadoPaginado<EventModel>> obtenerEventosPublicos({
+    int pagina = 0,
+    int tamanoPagina = 10,
+    FiltroEventos? filtros,
+  }) async {
+    try {
+      final desde = pagina * tamanoPagina;
+      final hasta = desde + tamanoPagina - 1;
+      final ahora = DateTime.now().toIso8601String();
+
+      // Construye el query base - solo eventos validados.
+      var query = _supabase.from('Evento').select('''
+            *,
+            categorias:Evento_Categoria(
+              categoria:Categoria(*)
+            )
+          ''').eq('validado', true);
+
+      // Aplica filtros de estado (solo próximos y pasados para públicos).
+      switch (filtros?.estado) {
+        case FiltroEstado.proximos:
+          query = query.gte('fecha', ahora);
+        case FiltroEstado.pasados:
+          query = query.lt('fecha', ahora);
+        case FiltroEstado.todos:
+        case FiltroEstado.pendientes:
+        case FiltroEstado.aprobados:
+        case null:
+          // Sin filtro adicional de estado.
+          break;
+      }
+
+      // Filtra por categoría si está especificada.
+      if (filtros?.idCategoria != null) {
+        final eventosConCategoria = await _supabase
+            .from('Evento_Categoria')
+            .select('id_evento')
+            .eq('id_categoria', filtros!.idCategoria!);
+
+        final idsEventos = (eventosConCategoria as List)
+            .map((e) => e['id_evento'] as int)
+            .toList();
+
+        if (idsEventos.isEmpty) {
+          return ResultadoPaginado(
+            datos: [],
+            hayMas: false,
+            paginaActual: pagina,
+          );
+        }
+
+        query = query.inFilter('id_evento', idsEventos);
+      }
+
+      // Determina el ordenamiento.
+      final orden = filtros?.orden ?? OrdenEvento.masProximos;
+      String columnaOrden;
+      bool ascendente;
+
+      switch (orden) {
+        case OrdenEvento.masRecientes:
+          columnaOrden = 'created_at';
+          ascendente = false;
+        case OrdenEvento.masAntiguos:
+          columnaOrden = 'created_at';
+          ascendente = true;
+        case OrdenEvento.masProximos:
+          columnaOrden = 'fecha';
+          ascendente = true;
+        case OrdenEvento.masLejanos:
+          columnaOrden = 'fecha';
+          ascendente = false;
+      }
+
+      // Aplica ordenamiento y paginación.
+      final respuesta = await query
+          .order(columnaOrden, ascending: ascendente)
+          .range(desde, hasta);
+
+      final eventos = (respuesta as List).map((json) {
+        final categoriasRaw = json['categorias'] as List? ?? [];
+        final categorias = categoriasRaw
+            .map((ec) => ec['categoria'] as Map<String, dynamic>?)
+            .where((c) => c != null)
+            .map((c) => CategoriaModel.fromMap(c!))
+            .toList();
+
+        return EventModel.fromMap({
+          ...json,
+          'categorias': null,
+        }).copyWith(categorias: categorias);
+      }).toList();
+
+      final hayMas = eventos.length == tamanoPagina;
+
+      return ResultadoPaginado(
+        datos: eventos,
+        hayMas: hayMas,
+        paginaActual: pagina,
+      );
+    } on PostgrestException catch (e) {
+      throw Exception('Error al obtener eventos: ${e.message}');
     }
   }
 

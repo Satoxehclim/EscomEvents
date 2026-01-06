@@ -328,11 +328,13 @@ class ChipsFiltroEstado extends StatelessWidget {
 
   List<DropdownItem<FiltroEstado>> _obtenerItems() {
     final itemsBase = <DropdownItem<FiltroEstado>>[
-      const DropdownItem(
-        valor: FiltroEstado.todos,
-        etiqueta: 'Todos',
-        icono: Icons.all_inclusive,
-      ),
+      // "Todos" solo se muestra para organizadores/admins.
+      if (mostrarFiltrosAvanzados)
+        const DropdownItem(
+          valor: FiltroEstado.todos,
+          etiqueta: 'Todos',
+          icono: Icons.all_inclusive,
+        ),
       const DropdownItem(
         valor: FiltroEstado.proximos,
         etiqueta: 'Próximos',

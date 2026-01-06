@@ -1,69 +1,73 @@
+import 'package:escomevents_app/core/utils/paleta.dart';
+import 'package:escomevents_app/features/auth/view/pages/bienvenida_page.dart';
 import 'package:escomevents_app/features/eventos/models/evento_model.dart';
+import 'package:escomevents_app/features/eventos/models/filtro_eventos_model.dart';
+import 'package:escomevents_app/features/eventos/viewmodel/evento_viewmodel.dart';
+import 'package:escomevents_app/features/eventos/views/pages/detalle_evento_page.dart';
 import 'package:escomevents_app/features/eventos/views/widgets/evento_card.dart';
 import 'package:escomevents_app/features/eventos/views/widgets/evento_search_header.dart';
 import 'package:escomevents_app/features/eventos/views/widgets/filtros_eventos.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// PANTALLA DE LISTA DE EVENTOS
-class EventsScreen extends StatefulWidget {
+// Pantalla de lista de eventos públicos para estudiantes.
+class EventsScreen extends ConsumerStatefulWidget {
   const EventsScreen({super.key});
 
   @override
-  State<EventsScreen> createState() => _EventsScreenState();
+  ConsumerState<EventsScreen> createState() => _EventsScreenState();
 }
 
-class _EventsScreenState extends State<EventsScreen> {
-  // Estado de los filtros.
-  FiltrosEventos _filtros = const FiltrosEventos();
+class _EventsScreenState extends ConsumerState<EventsScreen> {
+  // Estado de los filtros (solo próximos/pasados, categoría y orden).
+  FiltrosEventosUI _filtros = const FiltrosEventosUI(
+    estado: FiltroEstado.proximos,
+    orden: OrdenEvento.masProximos,
+  );
 
-  // Filtra y ordena los eventos.
-  List<EventModel> _filtrarYOrdenarEventos(List<EventModel> eventos) {
-    final ahora = DateTime.now();
+  // Controlador de scroll para detectar cuando se llega al final.
+  final ScrollController _scrollController = ScrollController();
 
-    // Filtrar por estado (solo próximos, pasados y todos para estudiantes).
-    List<EventModel> eventosFiltrados;
-    switch (_filtros.filtroEstado) {
-      case FiltroEstado.todos:
-        eventosFiltrados =
-            eventos.where((e) => e.validado).toList(); // Solo validados.
-        break;
-      case FiltroEstado.proximos:
-        eventosFiltrados =
-            eventos.where((e) => e.fecha.isAfter(ahora) && e.validado).toList();
-        break;
-      case FiltroEstado.pasados:
-        eventosFiltrados = eventos
-            .where((e) => e.fecha.isBefore(ahora) && e.validado)
-            .toList();
-        break;
-      // Estos casos no deberían ocurrir en EventsScreen.
-      case FiltroEstado.pendientes:
-      case FiltroEstado.aprobados:
-        eventosFiltrados = eventos.where((e) => e.validado).toList();
-        break;
+  @override
+  void initState() {
+    super.initState();
+    // Carga los eventos al iniciar.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _cargarEventos();
+    });
+
+    // Escucha el scroll para cargar más eventos.
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  // Detecta cuando se acerca al final de la lista.
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      ref.read(eventosPublicosProvider.notifier).cargarMasEventos();
     }
+  }
 
-    // TODO: Filtrar por categoría cuando se implemente.
+  // Carga los eventos públicos.
+  Future<void> _cargarEventos() async {
+    await ref.read(eventosPublicosProvider.notifier).cargarEventos(
+          filtros: _filtros.toFiltroEventos(),
+        );
+  }
 
-    // Ordenar.
-    switch (_filtros.ordenarPor) {
-      case OrdenarPor.masRecientes:
-        eventosFiltrados
-            .sort((a, b) => b.fechaCreacion.compareTo(a.fechaCreacion));
-        break;
-      case OrdenarPor.masAntiguos:
-        eventosFiltrados
-            .sort((a, b) => a.fechaCreacion.compareTo(b.fechaCreacion));
-        break;
-      case OrdenarPor.masProximos:
-        eventosFiltrados.sort((a, b) => a.fecha.compareTo(b.fecha));
-        break;
-      case OrdenarPor.masLejanos:
-        eventosFiltrados.sort((a, b) => b.fecha.compareTo(a.fecha));
-        break;
-    }
-
-    return eventosFiltrados;
+  // Aplica los filtros y recarga los eventos.
+  void _aplicarFiltros(FiltrosEventosUI nuevosFiltros) {
+    setState(() => _filtros = nuevosFiltros);
+    ref.read(eventosPublicosProvider.notifier).cargarEventos(
+          filtros: nuevosFiltros.toFiltroEventos(),
+        );
   }
 
   // Muestra el modal de filtros.
@@ -71,91 +75,53 @@ class _EventsScreenState extends State<EventsScreen> {
     ModalFiltrosEventos.mostrar(
       context: context,
       filtrosActuales: _filtros,
-      mostrarFiltrosAvanzados: false, // Solo filtros básicos para estudiantes.
-      onAplicar: (nuevosFiltros) {
-        setState(() => _filtros = nuevosFiltros);
-      },
+      mostrarFiltrosAvanzados: false, // Sin filtros avanzados para estudiantes.
+      onAplicar: _aplicarFiltros,
+    );
+  }
+
+  // Navega a la página de detalle del evento.
+  Future<void> _navegarADetalle(EventModel evento) async {
+    final repository = ref.read(eventoRepositoryProvider);
+    final nombreOrganizador =
+        await repository.obtenerNombreOrganizador(evento.idOrganizador);
+
+    if (!mounted) return;
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => DetalleEventoPage(
+          evento: evento,
+          rol: RolUsuario.estudiante,
+          origen: OrigenDetalle.eventos,
+          nombreOrganizador: nombreOrganizador,
+        ),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    // Datos falsos para probar el diseño
-    final List<EventModel> mockEvents = [
-      EventModel(
-        id: 1,
-        idOrganizador: "org1",
-        nombre: "Hackathon 2026: Innovación AI",
-        fecha: DateTime(2026, 1, 6, 9, 0),
-        fechaCreacion: DateTime.now(),
-        entradaLibre: true,
-        validado: true,
-        categorias: [],
-        lugar: "Auditorio A",
-        imageUrl:
-            "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&q=80",
-      ),
-      EventModel(
-        id: 2,
-        idOrganizador: "org2",
-        nombre: "Taller de Flutter Avanzado",
-        fecha: DateTime(2026, 1, 7, 14, 30),
-        fechaCreacion: DateTime.now(),
-        entradaLibre: false,
-        validado: true,
-        categorias: [],
-        lugar: "Lab de Cómputo 3",
-        imageUrl:
-            "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=800&q=80",
-      ),
-      EventModel(
-        id: 3,
-        idOrganizador: "org3",
-        nombre: "Torneo de Fútbol Inter-ESCOM",
-        fecha: DateTime(2026, 1, 8, 12, 0),
-        fechaCreacion: DateTime.now(),
-        entradaLibre: true,
-        validado: true,
-        categorias: [],
-        lugar: "Canchas Deportivas",
-        imageUrl:
-            "https://images.unsplash.com/photo-1579952363873-27f3bade8f55?auto=format&fit=crop&w=800&q=80",
-      ),
-      EventModel(
-        id: 4,
-        idOrganizador: "org3",
-        nombre: "Conferencia de Ciberseguridad",
-        fecha: DateTime(2024, 12, 20, 10, 0),
-        fechaCreacion: DateTime.now(),
-        entradaLibre: true,
-        validado: true,
-        categorias: [],
-        lugar: "Auditorio B",
-        imageUrl:
-            "https://images.unsplash.com/photo-1579952363873-27f3bade8f55?auto=format&fit=crop&w=800&q=80",
-      ),
-    ];
-
-    final eventosFiltrados = _filtrarYOrdenarEventos(mockEvents);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final estadoEventos = ref.watch(eventosPublicosProvider);
 
     return Scaffold(
       body: SafeArea(
         child: Column(
           children: [
             const SizedBox(height: 10),
-            // Header reutilizable con búsqueda y filtros.
+            // Header con búsqueda y filtros.
             EventSearchHeader(
               onFilterTap: _mostrarFiltros,
             ),
 
-            // Chips de filtro rápido.
+            // Chips de filtro rápido (solo Próximos y Pasados).
             ChipsFiltroEstado(
-              filtroSeleccionado: _filtros.filtroEstado,
+              filtroSeleccionado: _filtros.estado,
               mostrarFiltrosAvanzados: false,
               onSeleccionar: (filtro) {
-                setState(() {
-                  _filtros = _filtros.copyWith(filtroEstado: filtro);
-                });
+                _aplicarFiltros(_filtros.copyWith(estado: filtro));
               },
             ),
 
@@ -166,29 +132,16 @@ class _EventsScreenState extends State<EventsScreen> {
                 alignment: Alignment.centerLeft,
                 child: Text(
                   _obtenerTituloSeccion(),
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
 
-            // Lista de eventos.
+            // Contenido según el estado.
             Expanded(
-              child: eventosFiltrados.isEmpty
-                  ? _construirEstadoVacio()
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: eventosFiltrados.length,
-                      itemBuilder: (context, index) {
-                        return EventCard(
-                          event: eventosFiltrados[index],
-                          onTap: () {
-                            // TODO: Navegación al detalle.
-                          },
-                        );
-                      },
-                    ),
+              child: _construirContenido(estadoEventos, theme, isDark),
             ),
           ],
         ),
@@ -196,25 +149,141 @@ class _EventsScreenState extends State<EventsScreen> {
     );
   }
 
-  // Obtiene el título de la sección según el filtro.
-  String _obtenerTituloSeccion() {
-    switch (_filtros.filtroEstado) {
-      case FiltroEstado.todos:
-        return 'Todos los Eventos';
-      case FiltroEstado.proximos:
-        return 'Próximos Eventos';
-      case FiltroEstado.pasados:
-        return 'Eventos Pasados';
-      case FiltroEstado.pendientes:
-      case FiltroEstado.aprobados:
-        return 'Eventos';
+  // Construye el contenido según el estado de los eventos.
+  Widget _construirContenido(
+    EventosPublicosState estado,
+    ThemeData theme,
+    bool isDark,
+  ) {
+    return switch (estado) {
+      EventosPublicosInicial() => _construirEstadoCargando(isDark),
+      EventosPublicosCargando() => _construirEstadoCargando(isDark),
+      EventosPublicosError(
+        mensaje: final mensaje,
+        eventosAnteriores: final eventosAnteriores
+      ) =>
+        eventosAnteriores.isNotEmpty
+            ? _construirListaEventos(eventosAnteriores, theme, isDark)
+            : _construirEstadoError(mensaje, theme, isDark),
+      EventosPublicosExitoso(
+        eventos: final eventos,
+        hayMas: final hayMas,
+        cargandoMas: final cargandoMas
+      ) =>
+        _construirListaEventos(
+          eventos,
+          theme,
+          isDark,
+          hayMas: hayMas,
+          cargandoMas: cargandoMas,
+        ),
+    };
+  }
+
+  // Construye el estado de carga.
+  Widget _construirEstadoCargando(bool isDark) {
+    return Center(
+      child: CircularProgressIndicator(
+        color: isDark ? AppColors.darkPrimary : AppColors.lightPrimary,
+      ),
+    );
+  }
+
+  // Construye el estado de error.
+  Widget _construirEstadoError(String mensaje, ThemeData theme, bool isDark) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 64,
+              color: Colors.red.shade400,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Error al cargar eventos',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              mensaje,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _cargarEventos,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Reintentar'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    isDark ? AppColors.darkPrimary : AppColors.lightPrimary,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Construye la lista de eventos con paginación.
+  Widget _construirListaEventos(
+    List<EventModel> eventos,
+    ThemeData theme,
+    bool isDark, {
+    bool hayMas = false,
+    bool cargandoMas = false,
+  }) {
+    if (eventos.isEmpty) {
+      return _construirEstadoVacio(theme, isDark);
     }
+
+    final itemCount = eventos.length + (cargandoMas || hayMas ? 1 : 0);
+
+    return RefreshIndicator(
+      onRefresh: _cargarEventos,
+      color: isDark ? AppColors.darkPrimary : AppColors.lightPrimary,
+      child: ListView.builder(
+        controller: _scrollController,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: itemCount,
+        itemBuilder: (context, index) {
+          // Último item: indicador de carga o espacio.
+          if (index == eventos.length) {
+            if (cargandoMas) {
+              return Padding(
+                padding: const EdgeInsets.all(16),
+                child: Center(
+                  child: CircularProgressIndicator(
+                    color:
+                        isDark ? AppColors.darkPrimary : AppColors.lightPrimary,
+                    strokeWidth: 2,
+                  ),
+                ),
+              );
+            }
+            return const SizedBox(height: 16);
+          }
+
+          return EventCard(
+            event: eventos[index],
+            onTap: () => _navegarADetalle(eventos[index]),
+          );
+        },
+      ),
+    );
   }
 
   // Construye el estado vacío.
-  Widget _construirEstadoVacio() {
-    final theme = Theme.of(context);
-
+  Widget _construirEstadoVacio(ThemeData theme, bool isDark) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -222,11 +291,11 @@ class _EventsScreenState extends State<EventsScreen> {
           Icon(
             Icons.event_busy,
             size: 64,
-            color: Colors.grey.shade400,
+            color: isDark ? AppColors.darkSecondary : AppColors.lightSecondary,
           ),
           const SizedBox(height: 16),
           Text(
-            'No hay eventos ${obtenerNombreFiltroEstado(_filtros.filtroEstado).toLowerCase()}',
+            'No hay eventos ${obtenerNombreFiltroEstado(_filtros.estado).toLowerCase()}',
             style: theme.textTheme.titleMedium?.copyWith(
               color: Colors.grey,
             ),
@@ -234,5 +303,19 @@ class _EventsScreenState extends State<EventsScreen> {
         ],
       ),
     );
+  }
+
+  // Obtiene el título de la sección según el filtro.
+  String _obtenerTituloSeccion() {
+    switch (_filtros.estado) {
+      case FiltroEstado.proximos:
+        return 'Próximos Eventos';
+      case FiltroEstado.pasados:
+        return 'Eventos Pasados';
+      case FiltroEstado.todos:
+      case FiltroEstado.pendientes:
+      case FiltroEstado.aprobados:
+        return 'Eventos';
+    }
   }
 }

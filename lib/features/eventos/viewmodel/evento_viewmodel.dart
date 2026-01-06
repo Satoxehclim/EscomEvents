@@ -432,3 +432,153 @@ class EventosOrganizadorNotifier extends Notifier<EventosOrganizadorState> {
     state = const EventosOrganizadorInicial();
   }
 }
+
+// Estado para la lista de eventos públicos con paginación.
+sealed class EventosPublicosState {
+  const EventosPublicosState();
+}
+
+class EventosPublicosInicial extends EventosPublicosState {
+  const EventosPublicosInicial();
+}
+
+class EventosPublicosCargando extends EventosPublicosState {
+  final List<EventModel> eventosAnteriores;
+  const EventosPublicosCargando({this.eventosAnteriores = const []});
+}
+
+class EventosPublicosExitoso extends EventosPublicosState {
+  final List<EventModel> eventos;
+  final bool hayMas;
+  final int paginaActual;
+  final bool cargandoMas;
+
+  const EventosPublicosExitoso({
+    required this.eventos,
+    this.hayMas = false,
+    this.paginaActual = 0,
+    this.cargandoMas = false,
+  });
+
+  EventosPublicosExitoso copyWith({
+    List<EventModel>? eventos,
+    bool? hayMas,
+    int? paginaActual,
+    bool? cargandoMas,
+  }) {
+    return EventosPublicosExitoso(
+      eventos: eventos ?? this.eventos,
+      hayMas: hayMas ?? this.hayMas,
+      paginaActual: paginaActual ?? this.paginaActual,
+      cargandoMas: cargandoMas ?? this.cargandoMas,
+    );
+  }
+}
+
+class EventosPublicosError extends EventosPublicosState {
+  final String mensaje;
+  final List<EventModel> eventosAnteriores;
+
+  const EventosPublicosError({
+    required this.mensaje,
+    this.eventosAnteriores = const [],
+  });
+}
+
+// Provider para los eventos públicos.
+final eventosPublicosProvider =
+    NotifierProvider<EventosPublicosNotifier, EventosPublicosState>(
+  EventosPublicosNotifier.new,
+);
+
+// Notifier para manejar la lista de eventos públicos.
+class EventosPublicosNotifier extends Notifier<EventosPublicosState> {
+  late final EventoRepository _repository;
+  FiltroEventos? _filtrosActuales;
+
+  @override
+  EventosPublicosState build() {
+    _repository = ref.watch(eventoRepositoryProvider);
+    return const EventosPublicosInicial();
+  }
+
+  // Carga los eventos públicos.
+  Future<void> cargarEventos({FiltroEventos? filtros}) async {
+    _filtrosActuales = filtros;
+
+    // Mantiene los eventos anteriores mientras carga.
+    final eventosAnteriores = switch (state) {
+      EventosPublicosExitoso(eventos: final e) => e,
+      EventosPublicosCargando(eventosAnteriores: final e) => e,
+      EventosPublicosError(eventosAnteriores: final e) => e,
+      _ => <EventModel>[],
+    };
+
+    state = EventosPublicosCargando(eventosAnteriores: eventosAnteriores);
+
+    try {
+      final resultado = await _repository.obtenerEventosPublicos(
+        pagina: 0,
+        filtros: filtros,
+      );
+
+      state = EventosPublicosExitoso(
+        eventos: resultado.datos,
+        hayMas: resultado.hayMas,
+        paginaActual: resultado.paginaActual,
+      );
+    } catch (e) {
+      state = EventosPublicosError(
+        mensaje: e.toString().replaceAll('Exception: ', ''),
+        eventosAnteriores: eventosAnteriores,
+      );
+    }
+  }
+
+  // Carga más eventos (paginación).
+  Future<void> cargarMasEventos() async {
+    final estadoActual = state;
+
+    // Solo carga más si está en estado exitoso y hay más eventos.
+    if (estadoActual is! EventosPublicosExitoso ||
+        !estadoActual.hayMas ||
+        estadoActual.cargandoMas) {
+      return;
+    }
+
+    state = estadoActual.copyWith(cargandoMas: true);
+
+    try {
+      final resultado = await _repository.obtenerEventosPublicos(
+        pagina: estadoActual.paginaActual + 1,
+        filtros: _filtrosActuales,
+      );
+
+      state = EventosPublicosExitoso(
+        eventos: [...estadoActual.eventos, ...resultado.datos],
+        hayMas: resultado.hayMas,
+        paginaActual: resultado.paginaActual,
+        cargandoMas: false,
+      );
+    } catch (e) {
+      // Si falla, vuelve al estado anterior sin el indicador de carga.
+      state = estadoActual.copyWith(cargandoMas: false);
+    }
+  }
+
+  // Recarga los eventos.
+  Future<void> recargar() async {
+    await cargarEventos(filtros: _filtrosActuales);
+  }
+
+  // Aplica nuevos filtros y recarga.
+  Future<void> aplicarFiltros(FiltroEventos? filtros) async {
+    await cargarEventos(filtros: filtros);
+  }
+
+  // Reinicia el estado.
+  void reiniciar() {
+    _filtrosActuales = null;
+    state = const EventosPublicosInicial();
+  }
+}
