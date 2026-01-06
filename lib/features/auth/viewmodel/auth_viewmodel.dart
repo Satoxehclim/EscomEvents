@@ -1,17 +1,18 @@
 import 'package:escomevents_app/features/auth/models/auth_state.dart';
 import 'package:escomevents_app/features/auth/models/perfil_model.dart';
 import 'package:escomevents_app/features/auth/repositories/auth_repository.dart';
+import 'package:escomevents_app/features/eventos/viewmodel/categoria_viewmodel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Provider del repositorio de autenticación.
+// Provider del repositorio de autenticación.
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepositoryImpl();
 });
 
-/// Provider del estado de autenticación.
+// Provider del estado de autenticación.
 final authProvider = NotifierProvider<AuthNotifier, AuthState>(AuthNotifier.new);
 
-/// Provider del perfil del usuario actual.
+// Provider del perfil del usuario actual.
 final perfilActualProvider = Provider<PerfilModel?>((ref) {
   final authState = ref.watch(authProvider);
   if (authState is AuthExitoso) {
@@ -20,7 +21,7 @@ final perfilActualProvider = Provider<PerfilModel?>((ref) {
   return null;
 });
 
-/// Notifier que maneja el estado de autenticación.
+// Notifier que maneja el estado de autenticación.
 class AuthNotifier extends Notifier<AuthState> {
   late final AuthRepository _repository;
 
@@ -30,7 +31,7 @@ class AuthNotifier extends Notifier<AuthState> {
     return const AuthInicial();
   }
 
-  /// Verifica si hay una sesión activa al iniciar la app.
+  // Verifica si hay una sesión activa al iniciar la app.
   Future<void> verificarSesion() async {
     if (!_repository.haySessionActiva) {
       state = const AuthNoAutenticado();
@@ -43,6 +44,8 @@ class AuthNotifier extends Notifier<AuthState> {
       final perfil = await _repository.obtenerPerfilActual();
       if (perfil != null) {
         state = AuthExitoso(perfil: perfil);
+        // Carga las categorías en caché.
+        await ref.read(categoriasProvider.notifier).cargarCategorias();
       } else {
         state = const AuthNoAutenticado();
       }
@@ -51,7 +54,7 @@ class AuthNotifier extends Notifier<AuthState> {
     }
   }
 
-  /// Inicia sesión con correo y contraseña.
+  // Inicia sesión con correo y contraseña.
   Future<bool> iniciarSesion({
     required String correo,
     required String contrasena,
@@ -64,6 +67,8 @@ class AuthNotifier extends Notifier<AuthState> {
         contrasena: contrasena,
       );
       state = AuthExitoso(perfil: perfil);
+      // Carga las categorías en caché.
+      await ref.read(categoriasProvider.notifier).cargarCategorias();
       return true;
     } catch (e) {
       state = AuthError(mensaje: e.toString().replaceAll('Exception: ', ''));
@@ -71,7 +76,7 @@ class AuthNotifier extends Notifier<AuthState> {
     }
   }
 
-  /// Registra un nuevo usuario.
+  // Registra un nuevo usuario.
   Future<bool> registrar({
     required String nombre,
     required String correo,
@@ -93,18 +98,20 @@ class AuthNotifier extends Notifier<AuthState> {
     }
   }
 
-  /// Cierra la sesión del usuario.
+  // Cierra la sesión del usuario.
   Future<void> cerrarSesion() async {
     state = const AuthCargando();
     try {
       await _repository.cerrarSesion();
+      // Limpia el caché de categorías.
+      ref.read(categoriasProvider.notifier).limpiarCache();
       state = const AuthNoAutenticado();
     } catch (e) {
       state = AuthError(mensaje: e.toString().replaceAll('Exception: ', ''));
     }
   }
 
-  /// Limpia el error actual.
+  // Limpia el error actual.
   void limpiarError() {
     if (state is AuthError) {
       state = const AuthNoAutenticado();

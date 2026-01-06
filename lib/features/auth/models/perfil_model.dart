@@ -1,23 +1,23 @@
 import 'package:escomevents_app/features/auth/view/pages/bienvenida_page.dart';
 
-/// Modelo que representa el perfil de un usuario.
+//Modelo que representa el perfil de un usuario.
 class PerfilModel {
-  /// Identificador único del perfil (UUID).
+  //Identificador único del perfil (UUID).
   final String idPerfil;
 
-  /// Nombre del usuario.
+  //Nombre del usuario.
   final String nombre;
 
-  /// URL del avatar del usuario.
+  //URL del avatar del usuario.
   final String? avatar;
 
-  /// URL del código QR del usuario.
+  //URL del código QR del usuario.
   final String? urlQr;
 
-  /// Rol del usuario en la aplicación.
+  //Rol del usuario en la aplicación.
   final RolUsuario rol;
 
-  /// Indica si el usuario necesita confirmar su correo electrónico.
+  //Indica si el usuario necesita confirmar su correo electrónico.
   final bool requiereConfirmacion;
 
   const PerfilModel({
@@ -29,7 +29,7 @@ class PerfilModel {
     this.requiereConfirmacion = false,
   });
 
-  /// Crea un [PerfilModel] desde un mapa JSON.
+  //Crea un [PerfilModel] desde un mapa JSON.
   factory PerfilModel.fromJson(Map<String, dynamic> json) {
     return PerfilModel(
       idPerfil: json['id_perfil'] as String,
@@ -40,7 +40,7 @@ class PerfilModel {
     );
   }
 
-  /// Convierte el modelo a un mapa JSON.
+  //Convierte el modelo a un mapa JSON.
   Map<String, dynamic> toJson() {
     return {
       'id_perfil': idPerfil,
@@ -51,20 +51,20 @@ class PerfilModel {
     };
   }
 
-  /// Parsea el rol desde un string.
+  //Parsea el rol desde un string.
   static RolUsuario _parseRol(String rol) {
     switch (rol.toLowerCase()) {
       case 'organizador':
         return RolUsuario.organizador;
-      case 'administrativo':
-        return RolUsuario.administrativo;
+      case 'administrador':
+        return RolUsuario.administrador;
       case 'estudiante':
       default:
         return RolUsuario.estudiante;
     }
   }
 
-  /// Crea una copia del modelo con los valores especificados.
+  //Crea una copia del modelo con los valores especificados.
   PerfilModel copyWith({
     String? idPerfil,
     String? nombre,

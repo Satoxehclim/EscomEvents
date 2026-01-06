@@ -83,14 +83,29 @@ class EventModel {
     );
   }
 
-  Map<String, dynamic> toMap() {
+  // Convierte el modelo a un mapa para insertar en Supabase.
+  Map<String, dynamic> toMapParaInsertar() {
     return <String, dynamic>{
-      'id_categoria': id,
       'id_organizador': idOrganizador,
       'nombre': nombre,
-      'fecha': fecha.millisecondsSinceEpoch,
-      'fecha_publicado': fechaPublicado?.millisecondsSinceEpoch,
-      'created_at': fechaCreacion.millisecondsSinceEpoch,
+      'fecha': fecha.toIso8601String(),
+      'entrada_libre': entradaLibre,
+      'descripcion': descripcion,
+      'validado': validado,
+      'imagen': imageUrl,
+      'lugar': lugar,
+      'flyer': flyer,
+    };
+  }
+
+  Map<String, dynamic> toMap() {
+    return <String, dynamic>{
+      'id_evento': id,
+      'id_organizador': idOrganizador,
+      'nombre': nombre,
+      'fecha': fecha.toIso8601String(),
+      'fecha_publicado': fechaPublicado?.toIso8601String(),
+      'created_at': fechaCreacion.toIso8601String(),
       'entrada_libre': entradaLibre,
       'descripcion': descripcion,
       'validado': validado,
@@ -105,23 +120,50 @@ class EventModel {
   }
 
   factory EventModel.fromMap(Map<String, dynamic> map) {
+    // Parsea la fecha desde string ISO 8601.
+    DateTime parsearFecha(dynamic valor) {
+      if (valor == null) return DateTime.now();
+      if (valor is DateTime) return valor;
+      if (valor is String) return DateTime.parse(valor);
+      return DateTime.now();
+    }
+
+    DateTime? parsearFechaOpcional(dynamic valor) {
+      if (valor == null) return null;
+      if (valor is DateTime) return valor;
+      if (valor is String) return DateTime.parse(valor);
+      return null;
+    }
+
     return EventModel(
-      id: map['id_categoria'] as int,
+      id: map['id_evento'] as int,
       idOrganizador: map['id_organizador'] as String,
       nombre: map['nombre'] as String,
-      fecha: DateTime.fromMillisecondsSinceEpoch(map['fecha'] as int),
-      fechaPublicado: map['fecha_publicado'] != null ? DateTime.fromMillisecondsSinceEpoch(map['fecha_publicado'] as int) : null,
-      fechaCreacion: DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int),
+      fecha: parsearFecha(map['fecha']),
+      fechaPublicado: parsearFechaOpcional(map['fecha_publicado']),
+      fechaCreacion: parsearFecha(map['created_at']),
       entradaLibre: map['entrada_libre'] as bool,
-      descripcion: map['descripcion'] != null ? map['descripcion'] as String : null,
+      descripcion: map['descripcion'] as String?,
       validado: map['validado'] as bool,
-      imageUrl: map['imagen'] != null ? map['imagen'] as String : null,
+      imageUrl: map['imagen'] as String?,
       lugar: map['lugar'] as String,
-      flyer: map['flyer'] != null ? map['flyer'] as String : null,
-      resumenComentarios: map['resumen_comentarios'] != null ? map['resumen_comentarios'] as String : null,
-      categorias: List<CategoriaModel>.from((map['categorias'] as List<int>).map<CategoriaModel>((x) => CategoriaModel.fromMap(x as Map<String,dynamic>),),),
-      asistencias: map['asistencias'] != null ? List<AsistenciaModel>.from((map['asistencias'] as List<int>).map<AsistenciaModel?>((x) => AsistenciaModel.fromMap(x as Map<String,dynamic>),),) : null,
-      calificaciones: map['calificaciones'] != null ? List<CalificacionModel>.from((map['calificaciones'] as List<int>).map<CalificacionModel?>((x) => CalificacionModel.fromMap(x as Map<String,dynamic>),),) : null,
+      flyer: map['flyer'] as String?,
+      resumenComentarios: map['resumen_comentarios'] as String?,
+      categorias: map['categorias'] != null
+          ? (map['categorias'] as List)
+              .map((x) => CategoriaModel.fromMap(x as Map<String, dynamic>))
+              .toList()
+          : [],
+      asistencias: map['asistencias'] != null
+          ? (map['asistencias'] as List)
+              .map((x) => AsistenciaModel.fromMap(x as Map<String, dynamic>))
+              .toList()
+          : null,
+      calificaciones: map['calificaciones'] != null
+          ? (map['calificaciones'] as List)
+              .map((x) => CalificacionModel.fromMap(x as Map<String, dynamic>))
+              .toList()
+          : null,
     );
   }
 

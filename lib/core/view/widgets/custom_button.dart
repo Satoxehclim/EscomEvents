@@ -1,38 +1,47 @@
 import 'package:escomevents_app/core/utils/paleta.dart';
 import 'package:flutter/material.dart';
 
-/// Tipos de botón disponibles.
-enum CustomButtonType { primary, secondary, outlined, text }
+// Tipos de botón disponibles.
+enum CustomButtonType {
+  primary,
+  secondary,
+  outlined,
+  text,
+  danger,
+  dangerOutlined,
+  success,
+  successOutlined,
+}
 
-/// Botón reutilizable que sigue la estética de la aplicación.
-///
-/// Permite personalizar el tipo, tamaño, iconos y estado de carga.
+// Botón reutilizable que sigue la estética de la aplicación.
+//
+// Permite personalizar el tipo, tamaño, iconos y estado de carga.
 class CustomButton extends StatelessWidget {
-  /// Texto del botón.
+  // Texto del botón.
   final String texto;
 
-  /// Callback al presionar el botón.
+  // Callback al presionar el botón.
   final VoidCallback? onPressed;
 
-  /// Tipo de botón (primary, secondary, outlined, text).
+  // Tipo de botón (primary, secondary, outlined, text).
   final CustomButtonType tipo;
 
-  /// Icono opcional al inicio del botón.
+  // Icono opcional al inicio del botón.
   final IconData? iconoInicio;
 
-  /// Icono opcional al final del botón.
+  // Icono opcional al final del botón.
   final IconData? iconoFin;
 
-  /// Indica si el botón ocupa todo el ancho disponible.
+  // Indica si el botón ocupa todo el ancho disponible.
   final bool anchoCompleto;
 
-  /// Indica si el botón está en estado de carga.
+  // Indica si el botón está en estado de carga.
   final bool cargando;
 
-  /// Padding interno del botón.
+  // Padding interno del botón.
   final EdgeInsetsGeometry? padding;
 
-  /// Radio del borde del botón.
+  // Radio del borde del botón.
   final double borderRadius;
 
   const CustomButton({
@@ -85,6 +94,26 @@ class CustomButton extends StatelessWidget {
         textoColor = primaryColor;
         bordeColor = null;
         break;
+      case CustomButtonType.danger:
+        botonColor = Colors.red;
+        textoColor = Colors.white;
+        bordeColor = null;
+        break;
+      case CustomButtonType.dangerOutlined:
+        botonColor = Colors.transparent;
+        textoColor = Colors.red;
+        bordeColor = Colors.red;
+        break;
+      case CustomButtonType.success:
+        botonColor = Colors.green;
+        textoColor = Colors.white;
+        bordeColor = null;
+        break;
+      case CustomButtonType.successOutlined:
+        botonColor = Colors.transparent;
+        textoColor = Colors.green;
+        bordeColor = Colors.green;
+        break;
     }
 
     final defaultPadding =
@@ -135,13 +164,13 @@ class CustomButton extends StatelessWidget {
                 ? Border.all(color: bordeColor, width: 1.5)
                 : null,
           ),
-          child: Center(child: contenidoBoton),
+          child: contenidoBoton,
         ),
       ),
     );
 
     if (anchoCompleto) {
-      return SizedBox(width: double.infinity, child: boton);
+      return SizedBox(width: double.infinity, child: Center(child: boton));
     }
 
     return boton;

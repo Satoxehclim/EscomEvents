@@ -49,7 +49,7 @@ class CategoriaModel {
     );
   }
 
-  /// Función auxiliar para mapear texto a Iconos de Flutter
+  // Función auxiliar para mapear texto a Iconos de Flutter
   static IconData _asignarIconoPorNombre(String nombre) {
     // Normalizamos el texto a minúsculas y quitamos espacios
     final nombreNormalizado = nombre.toLowerCase().trim();
@@ -64,7 +64,7 @@ class CategoriaModel {
     } else if (nombreNormalizado.contains('tecnología') || nombreNormalizado.contains('hackathon')) {
       return Icons.computer; // Sugerido para ESCOM
     } else if (nombreNormalizado.contains('institucional')) {
-      return Icons.account_balance; // Sugerido para Administrativos
+      return Icons.account_balance; // Sugerido para administradors
     } else if (nombreNormalizado.contains('taller') || nombreNormalizado.contains('curso')) {
       return Icons.build;
     } else if (nombreNormalizado.contains('empleo') || nombreNormalizado.contains('reclutamiento')) {
