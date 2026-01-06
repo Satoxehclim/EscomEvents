@@ -2,7 +2,16 @@ import 'package:escomevents_app/core/utils/paleta.dart';
 import 'package:flutter/material.dart';
 
 // Tipos de botón disponibles.
-enum CustomButtonType { primary, secondary, outlined, text }
+enum CustomButtonType {
+  primary,
+  secondary,
+  outlined,
+  text,
+  danger,
+  dangerOutlined,
+  success,
+  successOutlined,
+}
 
 // Botón reutilizable que sigue la estética de la aplicación.
 //
@@ -85,6 +94,26 @@ class CustomButton extends StatelessWidget {
         textoColor = primaryColor;
         bordeColor = null;
         break;
+      case CustomButtonType.danger:
+        botonColor = Colors.red;
+        textoColor = Colors.white;
+        bordeColor = null;
+        break;
+      case CustomButtonType.dangerOutlined:
+        botonColor = Colors.transparent;
+        textoColor = Colors.red;
+        bordeColor = Colors.red;
+        break;
+      case CustomButtonType.success:
+        botonColor = Colors.green;
+        textoColor = Colors.white;
+        bordeColor = null;
+        break;
+      case CustomButtonType.successOutlined:
+        botonColor = Colors.transparent;
+        textoColor = Colors.green;
+        bordeColor = Colors.green;
+        break;
     }
 
     final defaultPadding =
@@ -135,13 +164,13 @@ class CustomButton extends StatelessWidget {
                 ? Border.all(color: bordeColor, width: 1.5)
                 : null,
           ),
-          child: Center(child: contenidoBoton),
+          child: contenidoBoton,
         ),
       ),
     );
 
     if (anchoCompleto) {
-      return SizedBox(width: double.infinity, child: boton);
+      return SizedBox(width: double.infinity, child: Center(child: boton));
     }
 
     return boton;

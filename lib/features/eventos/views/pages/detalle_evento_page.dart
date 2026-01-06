@@ -1,4 +1,5 @@
 import 'package:escomevents_app/core/utils/paleta.dart';
+import 'package:escomevents_app/core/view/widgets/custom_button.dart';
 import 'package:escomevents_app/features/auth/view/pages/bienvenida_page.dart';
 import 'package:escomevents_app/features/eventos/models/evento_model.dart';
 import 'package:escomevents_app/features/eventos/views/widgets/formulario_editar_evento.dart';
@@ -288,21 +289,21 @@ class _DetalleEventoPageState extends State<DetalleEventoPage> {
           'Esta acción no se puede deshacer.',
         ),
         actions: [
-          TextButton(
+          CustomButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancelar'),
+            texto: 'Cancelar',
+            tipo: CustomButtonType.outlined,
+            anchoCompleto: false,
           ),
-          ElevatedButton(
+          CustomButton(
             onPressed: () {
               Navigator.of(dialogContext).pop();
               widget.onEventoEliminado?.call();
               Navigator.of(context).pop(); // Cierra la página de detalle.
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Eliminar'),
+            texto: 'Eliminar',
+            tipo: CustomButtonType.danger,
+            anchoCompleto: false,
           ),
         ],
       ),
