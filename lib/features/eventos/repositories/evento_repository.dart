@@ -42,6 +42,9 @@ abstract class EventoRepository {
     required List<CategoriaModel> categorias,
   });
 
+  // Elimina un evento y todos sus recursos asociados.
+  Future<void> eliminarEvento(EventModel evento);
+
   // Obtiene los eventos de un organizador con paginación y filtros.
   Future<ResultadoPaginado<EventModel>> obtenerEventosPorOrganizador(
     String idOrganizador, {
@@ -431,4 +434,43 @@ class EventoRepositoryImpl implements EventoRepository {
     }
   }
 
+  // Elimina una imagen del storage usando su URL pública.
+  Future<void> _eliminarImagenDeUrl(String urlPublica) async {
+    try {
+      // Extrae la ruta del archivo de la URL.
+      // URL formato: https://...supabase.co/storage/v1/object/public/bucket/path
+      final uri = Uri.parse(urlPublica);
+      final pathSegments = uri.pathSegments;
+      
+      // Busca el índice del bucket y obtiene la ruta después de él.
+      final bucketIndex = pathSegments.indexOf(_bucket);
+      if (bucketIndex != -1 && bucketIndex < pathSegments.length - 1) {
+        final rutaArchivo = pathSegments.sublist(bucketIndex + 1).join('/');
+        await _supabase.storage.from(_bucket).remove([rutaArchivo]);
+      }
+    } catch (_) {
+      // Ignora errores al eliminar imágenes.
+    }
+  }
+
+  @override
+  Future<void> eliminarEvento(EventModel evento) async {
+    try {
+      // Elimina el evento de la base de datos.
+      await _supabase.from('Evento').delete().eq('id_evento', evento.id);
+
+      // Elimina las imágenes del storage al final.
+      // Esto asegura que la eliminación de BD fue exitosa antes de borrar archivos.
+      if (evento.imageUrl != null) {
+        await _eliminarImagenDeUrl(evento.imageUrl!);
+      }
+      if (evento.flyer != null) {
+        await _eliminarImagenDeUrl(evento.flyer!);
+      }
+    } on PostgrestException catch (e) {
+      throw Exception('Error al eliminar evento: ${e.message}');
+    } on StorageException catch (e) {
+      throw Exception('Error al eliminar archivos: ${e.message}');
+    }
+  }
 }

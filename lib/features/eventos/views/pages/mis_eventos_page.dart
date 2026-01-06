@@ -132,6 +132,34 @@ class _MisEventosPageState extends ConsumerState<MisEventosPage> {
     );
   }
 
+  // Elimina un evento.
+  Future<void> _eliminarEvento(EventModel evento) async {
+    final exito =
+        await ref.read(eliminarEventoProvider.notifier).eliminarEvento(evento);
+
+    if (exito && mounted) {
+      // Elimina de la lista local.
+      ref.read(eventosOrganizadorProvider.notifier).eliminarEvento(evento.id);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Evento eliminado exitosamente'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else if (mounted) {
+      final estadoError = ref.read(eliminarEventoProvider);
+      if (estadoError is EliminarEventoError) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${estadoError.mensaje}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   // Muestra el formulario para crear un nuevo evento.
   void _mostrarFormularioNuevoEvento() {
     final theme = Theme.of(context);

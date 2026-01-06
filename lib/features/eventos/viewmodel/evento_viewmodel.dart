@@ -34,6 +34,66 @@ class CrearEventoError extends CrearEventoState {
   const CrearEventoError({required this.mensaje});
 }
 
+// Estado para eliminar eventos.
+sealed class EliminarEventoState {
+  const EliminarEventoState();
+}
+
+class EliminarEventoInicial extends EliminarEventoState {
+  const EliminarEventoInicial();
+}
+
+class EliminarEventoCargando extends EliminarEventoState {
+  const EliminarEventoCargando();
+}
+
+class EliminarEventoExitoso extends EliminarEventoState {
+  const EliminarEventoExitoso();
+}
+
+class EliminarEventoError extends EliminarEventoState {
+  final String mensaje;
+  const EliminarEventoError({required this.mensaje});
+}
+
+// Provider para eliminar eventos.
+final eliminarEventoProvider =
+    NotifierProvider<EliminarEventoNotifier, EliminarEventoState>(
+  EliminarEventoNotifier.new,
+);
+
+// Notifier para manejar la eliminación de eventos.
+class EliminarEventoNotifier extends Notifier<EliminarEventoState> {
+  late final EventoRepository _repository;
+
+  @override
+  EliminarEventoState build() {
+    _repository = ref.watch(eventoRepositoryProvider);
+    return const EliminarEventoInicial();
+  }
+
+  // Elimina un evento.
+  Future<bool> eliminarEvento(EventModel evento) async {
+    state = const EliminarEventoCargando();
+
+    try {
+      await _repository.eliminarEvento(evento);
+      state = const EliminarEventoExitoso();
+      return true;
+    } catch (e) {
+      state = EliminarEventoError(
+        mensaje: e.toString().replaceAll('Exception: ', ''),
+      );
+      return false;
+    }
+  }
+
+  // Reinicia el estado.
+  void reiniciar() {
+    state = const EliminarEventoInicial();
+  }
+}
+
 // Provider para crear eventos.
 final crearEventoProvider =
     NotifierProvider<CrearEventoNotifier, CrearEventoState>(
