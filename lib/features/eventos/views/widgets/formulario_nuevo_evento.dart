@@ -1,26 +1,23 @@
 import 'dart:io';
 
-import 'package:escomevents_app/core/utils/paleta.dart';
 import 'package:escomevents_app/core/view/widgets/custom_button.dart';
 import 'package:escomevents_app/core/view/widgets/custom_text_field.dart';
 import 'package:escomevents_app/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:escomevents_app/features/eventos/models/categoria_model.dart';
 import 'package:escomevents_app/features/eventos/viewmodel/categoria_viewmodel.dart';
 import 'package:escomevents_app/features/eventos/viewmodel/evento_viewmodel.dart';
+import 'package:escomevents_app/features/eventos/views/widgets/componentes_formulario_evento.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
-// Formulario para crear un nuevo evento.
-//
-// Incluye campos para nombre, fecha, lugar, descripción, entrada libre,
-// selección de imagen y flyer, y selector de categorías.
+/// Formulario para crear un nuevo evento.
 class FormularioNuevoEvento extends ConsumerStatefulWidget {
-  // Callback cuando se guarda el evento.
+  /// Callback cuando se guarda el evento.
   final VoidCallback? onGuardar;
 
-  // Callback cuando se cancela.
+  /// Callback cuando se cancela.
   final VoidCallback? onCancelar;
 
   const FormularioNuevoEvento({
@@ -51,8 +48,6 @@ class _FormularioNuevoEventoState extends ConsumerState<FormularioNuevoEvento> {
   File? _flyerSeleccionado;
   List<CategoriaModel> _categoriasSeleccionadas = [];
   bool _guardando = false;
-
-  // Error de validación para categorías.
   String? _errorCategorias;
 
   @override
@@ -63,7 +58,6 @@ class _FormularioNuevoEventoState extends ConsumerState<FormularioNuevoEvento> {
     super.dispose();
   }
 
-  // Selecciona una fecha.
   Future<void> _seleccionarFecha() async {
     final fecha = await showDatePicker(
       context: context,
@@ -78,7 +72,6 @@ class _FormularioNuevoEventoState extends ConsumerState<FormularioNuevoEvento> {
     }
   }
 
-  // Selecciona una hora.
   Future<void> _seleccionarHora() async {
     final hora = await showTimePicker(
       context: context,
@@ -96,63 +89,8 @@ class _FormularioNuevoEventoState extends ConsumerState<FormularioNuevoEvento> {
     }
   }
 
-  // Formatea la hora en formato de 24 horas (HH:mm).
-  String _formatearHora24(TimeOfDay hora) {
-    final horaStr = hora.hour.toString().padLeft(2, '0');
-    final minutoStr = hora.minute.toString().padLeft(2, '0');
-    return '$horaStr:$minutoStr';
-  }
-
-  // Selecciona una imagen desde galería o cámara.
   Future<void> _seleccionarImagen({required bool esFlyer}) async {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    final opcion = await showModalBottomSheet<ImageSource>(
-      context: context,
-      backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade400,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  esFlyer ? 'Seleccionar Flyer' : 'Seleccionar Imagen',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                const SizedBox(height: 20),
-                ListTile(
-                  leading: const Icon(Icons.photo_library),
-                  title: const Text('Galería'),
-                  onTap: () => Navigator.pop(context, ImageSource.gallery),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.camera_alt),
-                  title: const Text('Cámara'),
-                  onTap: () => Navigator.pop(context, ImageSource.camera),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-
+    final opcion = await mostrarSelectorOrigenImagen(context, esFlyer: esFlyer);
     if (opcion == null) return;
 
     final imagen = await _imagePicker.pickImage(
@@ -163,41 +101,25 @@ class _FormularioNuevoEventoState extends ConsumerState<FormularioNuevoEvento> {
     );
 
     if (imagen != null) {
-      // Valida el tamaño del archivo.
       final archivo = File(imagen.path);
-      final tamanoBytes = await archivo.length();
-      final tamanoMB = tamanoBytes / (1024 * 1024);
+      final esValido = await validarTamanoImagen(
+        context,
+        archivo,
+        esFlyer: esFlyer,
+      );
 
-      // Límite: 5 MB para flyer, 1 MB para imagen.
-      final limiteMaxMB = esFlyer ? 5.0 : 1.0;
-
-      if (tamanoMB > limiteMaxMB) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                esFlyer
-                    ? 'El flyer excede el límite de 5 MB (${tamanoMB.toStringAsFixed(2)} MB)'
-                    : 'La imagen excede el límite de 1 MB (${tamanoMB.toStringAsFixed(2)} MB)',
-              ),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-        return;
+      if (esValido) {
+        setState(() {
+          if (esFlyer) {
+            _flyerSeleccionado = archivo;
+          } else {
+            _imagenSeleccionada = archivo;
+          }
+        });
       }
-
-      setState(() {
-        if (esFlyer) {
-          _flyerSeleccionado = archivo;
-        } else {
-          _imagenSeleccionada = archivo;
-        }
-      });
     }
   }
 
-  // Elimina una imagen seleccionada.
   void _eliminarImagen({required bool esFlyer}) {
     setState(() {
       if (esFlyer) {
@@ -208,7 +130,6 @@ class _FormularioNuevoEventoState extends ConsumerState<FormularioNuevoEvento> {
     });
   }
 
-  // Alterna la selección de una categoría.
   void _alternarCategoria(CategoriaModel categoria) {
     setState(() {
       if (_categoriasSeleccionadas.contains(categoria)) {
@@ -216,44 +137,32 @@ class _FormularioNuevoEventoState extends ConsumerState<FormularioNuevoEvento> {
       } else {
         _categoriasSeleccionadas.add(categoria);
       }
-      // Limpia el error si ya hay categorías seleccionadas.
       if (_categoriasSeleccionadas.isNotEmpty) {
         _errorCategorias = null;
       }
     });
   }
 
-  // Valida y guarda el formulario.
   Future<void> _guardar() async {
     // Valida las categorías.
     if (_categoriasSeleccionadas.isEmpty) {
-      setState(() {
-        _errorCategorias = 'Selecciona al menos una categoría';
-      });
+      setState(() => _errorCategorias = 'Selecciona al menos una categoría');
     }
 
-    // Valida el formulario.
     if (!_formKey.currentState!.validate() ||
         _categoriasSeleccionadas.isEmpty) {
       return;
     }
 
-    // Obtiene el id del organizador.
     final perfil = ref.read(perfilActualProvider);
     if (perfil == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error: No se pudo obtener el perfil del usuario'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _mostrarError('No se pudo obtener el perfil del usuario');
       return;
     }
 
     setState(() => _guardando = true);
 
     try {
-      // Combina fecha y hora.
       final fechaCompleta = DateTime(
         _fechaEvento!.year,
         _fechaEvento!.month,
@@ -262,56 +171,39 @@ class _FormularioNuevoEventoState extends ConsumerState<FormularioNuevoEvento> {
         _horaEvento?.minute ?? 0,
       );
 
-      // Crea el evento usando el viewmodel.
-      final exito = await ref.read(crearEventoProvider.notifier).crearEvento(
-            idOrganizador: perfil.idPerfil,
-            nombre: _nombreController.text.trim(),
-            fecha: fechaCompleta,
-            lugar: _lugarController.text.trim(),
-            entradaLibre: _entradaLibre,
-            descripcion: _descripcionController.text.trim().isNotEmpty
-                ? _descripcionController.text.trim()
-                : null,
-            imagen: _imagenSeleccionada,
-            flyer: _flyerSeleccionado,
-            categorias: _categoriasSeleccionadas,
-          );
+      final exito =
+          await ref.read(crearEventoProvider.notifier).crearEvento(
+                idOrganizador: perfil.idPerfil,
+                nombre: _nombreController.text.trim(),
+                fecha: fechaCompleta,
+                lugar: _lugarController.text.trim(),
+                entradaLibre: _entradaLibre,
+                descripcion: _descripcionController.text.trim().isNotEmpty
+                    ? _descripcionController.text.trim()
+                    : null,
+                imagen: _imagenSeleccionada,
+                flyer: _flyerSeleccionado,
+                categorias: _categoriasSeleccionadas,
+              );
 
       if (exito && mounted) {
-        // Agrega el evento a la lista del organizador.
-        final estadoCrear = ref.read(crearEventoProvider);
-        if (estadoCrear is CrearEventoExitoso) {
+        final estado = ref.read(crearEventoProvider);
+        if (estado is CrearEventoExitoso) {
           ref
               .read(eventosOrganizadorProvider.notifier)
-              .agregarEvento(estadoCrear.evento);
+              .agregarEvento(estado.evento);
         }
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Evento creado exitosamente'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        _mostrarExito('Evento creado exitosamente');
         widget.onGuardar?.call();
       } else if (mounted) {
-        final estadoError = ref.read(crearEventoProvider);
-        if (estadoError is CrearEventoError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error: ${estadoError.mensaje}'),
-              backgroundColor: Colors.red,
-            ),
-          );
+        final estado = ref.read(crearEventoProvider);
+        if (estado is CrearEventoError) {
+          _mostrarError(estado.mensaje);
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al crear evento: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        _mostrarError('Error al crear evento: $e');
       }
     } finally {
       if (mounted) {
@@ -320,10 +212,20 @@ class _FormularioNuevoEventoState extends ConsumerState<FormularioNuevoEvento> {
     }
   }
 
+  void _mostrarError(String mensaje) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(mensaje), backgroundColor: Colors.red),
+    );
+  }
+
+  void _mostrarExito(String mensaje) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(mensaje), backgroundColor: Colors.green),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     final categorias = ref.watch(listaCategoriasCacheProvider);
 
     return Form(
@@ -333,8 +235,8 @@ class _FormularioNuevoEventoState extends ConsumerState<FormularioNuevoEvento> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Campo: Nombre del evento (obligatorio).
-            _construirSeccion(
+            // Nombre del evento.
+            SeccionFormulario(
               titulo: 'Nombre del evento',
               obligatorio: true,
               child: CustomTextField(
@@ -353,41 +255,39 @@ class _FormularioNuevoEventoState extends ConsumerState<FormularioNuevoEvento> {
               ),
             ),
 
-            // Campo: Fecha y hora (obligatorio).
-            _construirSeccion(
+            // Fecha y hora.
+            SeccionFormulario(
               titulo: 'Fecha y hora',
               obligatorio: true,
               child: Row(
                 children: [
-                  // Selector de fecha.
                   Expanded(
-                    child: _construirSelectorFechaHora(
+                    child: SelectorFechaHora(
                       icono: Icons.calendar_today,
                       texto: _fechaEvento != null
                           ? DateFormat('dd/MM/yyyy').format(_fechaEvento!)
                           : 'Seleccionar fecha',
                       onTap: _seleccionarFecha,
-                      error: _fechaEvento == null,
+                      mostrarError: _fechaEvento == null,
                     ),
                   ),
                   const SizedBox(width: 12),
-                  // Selector de hora.
                   Expanded(
-                    child: _construirSelectorFechaHora(
+                    child: SelectorFechaHora(
                       icono: Icons.access_time,
                       texto: _horaEvento != null
-                          ? _formatearHora24(_horaEvento!)
+                          ? formatearHora24(_horaEvento!)
                           : 'Seleccionar hora',
                       onTap: _seleccionarHora,
-                      error: _horaEvento == null,
+                      mostrarError: _horaEvento == null,
                     ),
                   ),
                 ],
               ),
             ),
 
-            // Campo: Lugar (obligatorio).
-            _construirSeccion(
+            // Lugar.
+            SeccionFormulario(
               titulo: 'Lugar',
               obligatorio: true,
               child: CustomTextField(
@@ -403,8 +303,8 @@ class _FormularioNuevoEventoState extends ConsumerState<FormularioNuevoEvento> {
               ),
             ),
 
-            // Campo: Descripción (opcional).
-            _construirSeccion(
+            // Descripción.
+            SeccionFormulario(
               titulo: 'Descripción',
               obligatorio: false,
               child: CustomTextField(
@@ -416,40 +316,50 @@ class _FormularioNuevoEventoState extends ConsumerState<FormularioNuevoEvento> {
               ),
             ),
 
-            // Campo: Entrada libre.
-            _construirSeccion(
+            // Tipo de entrada.
+            SeccionFormulario(
               titulo: 'Tipo de entrada',
               obligatorio: true,
-              child: _construirSwitchEntradaLibre(isDark),
+              child: SwitchEntradaLibre(
+                valor: _entradaLibre,
+                onChanged: (valor) => setState(() => _entradaLibre = valor),
+              ),
             ),
 
-            // Campo: Imagen del evento (opcional).
-            _construirSeccion(
+            // Imagen del evento.
+            SeccionFormulario(
               titulo: 'Imagen del evento',
               obligatorio: false,
-              child: _construirSelectorImagen(
+              child: SelectorImagenNueva(
                 imagen: _imagenSeleccionada,
                 esFlyer: false,
-                isDark: isDark,
+                onSeleccionar: () => _seleccionarImagen(esFlyer: false),
+                onEliminar: () => _eliminarImagen(esFlyer: false),
               ),
             ),
 
-            // Campo: Flyer del evento (opcional).
-            _construirSeccion(
+            // Flyer del evento.
+            SeccionFormulario(
               titulo: 'Flyer del evento',
               obligatorio: false,
-              child: _construirSelectorImagen(
+              child: SelectorImagenNueva(
                 imagen: _flyerSeleccionado,
                 esFlyer: true,
-                isDark: isDark,
+                onSeleccionar: () => _seleccionarImagen(esFlyer: true),
+                onEliminar: () => _eliminarImagen(esFlyer: true),
               ),
             ),
 
-            // Campo: Categorías (obligatorio).
-            _construirSeccion(
+            // Categorías.
+            SeccionFormulario(
               titulo: 'Categorías',
               obligatorio: true,
-              child: _construirSelectorCategorias(categorias, isDark),
+              child: SelectorCategorias(
+                categoriasDisponibles: categorias,
+                categoriasSeleccionadas: _categoriasSeleccionadas,
+                errorMensaje: _errorCategorias,
+                onCategoriaSeleccionada: _alternarCategoria,
+              ),
             ),
 
             const SizedBox(height: 24),
@@ -480,292 +390,6 @@ class _FormularioNuevoEventoState extends ConsumerState<FormularioNuevoEvento> {
           ],
         ),
       ),
-    );
-  }
-
-  // Construye una sección con título.
-  Widget _construirSeccion({
-    required String titulo,
-    required bool obligatorio,
-    required Widget child,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                titulo,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-              if (obligatorio)
-                const Text(
-                  ' *',
-                  style: TextStyle(color: Colors.red, fontSize: 16),
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          child,
-        ],
-      ),
-    );
-  }
-
-  // Construye el selector de fecha/hora.
-  Widget _construirSelectorFechaHora({
-    required IconData icono,
-    required String texto,
-    required VoidCallback onTap,
-    required bool error,
-  }) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final backgroundColor =
-        isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF3F4F6);
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(12),
-          border: error
-              ? Border.all(color: Colors.red.shade300, width: 1)
-              : null,
-        ),
-        child: Row(
-          children: [
-            Icon(icono, color: Colors.grey, size: 22),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                texto,
-                style: TextStyle(
-                  color: texto.contains('Seleccionar')
-                      ? Colors.grey.withOpacity(0.7)
-                      : (isDark ? Colors.white : Colors.black87),
-                  fontSize: 14,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Construye el switch de entrada libre.
-  Widget _construirSwitchEntradaLibre(bool isDark) {
-    final primaryColor =
-        isDark ? AppColors.darkPrimary : AppColors.lightPrimary;
-    final backgroundColor =
-        isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF3F4F6);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            _entradaLibre ? Icons.lock_open : Icons.lock,
-            color: Colors.grey,
-            size: 22,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              _entradaLibre ? 'Entrada libre' : 'Evento con control de acceso',
-              style: TextStyle(
-                color: isDark ? Colors.white : Colors.black87,
-                fontSize: 14,
-              ),
-            ),
-          ),
-          Switch(
-            value: _entradaLibre,
-            onChanged: (valor) => setState(() => _entradaLibre = valor),
-            activeColor: primaryColor,
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Construye el selector de imagen.
-  Widget _construirSelectorImagen({
-    required File? imagen,
-    required bool esFlyer,
-    required bool isDark,
-  }) {
-    final primaryColor =
-        isDark ? AppColors.darkPrimary : AppColors.lightPrimary;
-    final backgroundColor =
-        isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF3F4F6);
-
-    if (imagen != null) {
-      return Stack(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.file(
-              imagen,
-              height: 150,
-              width: double.infinity,
-              fit: BoxFit.cover,
-            ),
-          ),
-          Positioned(
-            top: 8,
-            right: 8,
-            child: IconButton(
-              onPressed: () => _eliminarImagen(esFlyer: esFlyer),
-              icon: const Icon(Icons.close),
-              style: IconButton.styleFrom(
-                backgroundColor: Colors.black54,
-                foregroundColor: Colors.white,
-              ),
-            ),
-          ),
-        ],
-      );
-    }
-
-    return InkWell(
-      onTap: () => _seleccionarImagen(esFlyer: esFlyer),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        height: 120,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: primaryColor.withOpacity(0.3),
-            width: 1,
-            style: BorderStyle.solid,
-          ),
-        ),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                esFlyer ? Icons.insert_drive_file : Icons.add_photo_alternate,
-                size: 40,
-                color: primaryColor.withOpacity(0.7),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                esFlyer
-                    ? 'Agrega el flyer (máx. 5 MB)'
-                    : 'Agrega una imagen representativa del evento (recomendada 360x150, máx. 1 MB)',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: primaryColor.withOpacity(0.7),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Construye el selector de categorías.
-  Widget _construirSelectorCategorias(
-    List<CategoriaModel> categorias,
-    bool isDark,
-  ) {
-    final primaryColor =
-        isDark ? AppColors.darkPrimary : AppColors.lightPrimary;
-    final backgroundColor =
-        isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF3F4F6);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: backgroundColor,
-            borderRadius: BorderRadius.circular(12),
-            border: _errorCategorias != null
-                ? Border.all(color: Colors.red.shade300, width: 1)
-                : null,
-          ),
-          child: categorias.isEmpty
-              ? const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(20),
-                    child: Text(
-                      'No hay categorías disponibles',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ),
-                )
-              : Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: categorias.map((categoria) {
-                    final seleccionada =
-                        _categoriasSeleccionadas.contains(categoria);
-                    return FilterChip(
-                      selected: seleccionada,
-                      label: Text(categoria.nombre),
-                      avatar: Icon(
-                        categoria.icono ?? Icons.category,
-                        size: 18,
-                        color: seleccionada ? Colors.white : primaryColor,
-                      ),
-                      selectedColor: primaryColor,
-                      showCheckmark: false,
-                      labelStyle: TextStyle(
-                        color: seleccionada ? Colors.white : primaryColor,
-                        fontWeight:
-                            seleccionada ? FontWeight.bold : FontWeight.normal,
-                      ),
-                      side: BorderSide(color: primaryColor),
-                      onSelected: (_) => _alternarCategoria(categoria),
-                    );
-                  }).toList(),
-                ),
-        ),
-        if (_errorCategorias != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 8, left: 12),
-            child: Text(
-              _errorCategorias!,
-              style: TextStyle(
-                color: Colors.red.shade400,
-                fontSize: 12,
-              ),
-            ),
-          ),
-        if (_categoriasSeleccionadas.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text(
-              '${_categoriasSeleccionadas.length} categoría(s) seleccionada(s)',
-              style: TextStyle(
-                color: Colors.grey.shade600,
-                fontSize: 12,
-              ),
-            ),
-          ),
-      ],
     );
   }
 }

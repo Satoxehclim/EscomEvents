@@ -34,6 +34,92 @@ class CrearEventoError extends CrearEventoState {
   const CrearEventoError({required this.mensaje});
 }
 
+// Estado para la edición de eventos.
+sealed class EditarEventoState {
+  const EditarEventoState();
+}
+
+class EditarEventoInicial extends EditarEventoState {
+  const EditarEventoInicial();
+}
+
+class EditarEventoCargando extends EditarEventoState {
+  const EditarEventoCargando();
+}
+
+class EditarEventoExitoso extends EditarEventoState {
+  final EventModel evento;
+  const EditarEventoExitoso({required this.evento});
+}
+
+class EditarEventoError extends EditarEventoState {
+  final String mensaje;
+  const EditarEventoError({required this.mensaje});
+}
+
+// Provider para editar eventos.
+final editarEventoProvider =
+    NotifierProvider<EditarEventoNotifier, EditarEventoState>(
+  EditarEventoNotifier.new,
+);
+
+// Notifier para manejar la edición de eventos.
+class EditarEventoNotifier extends Notifier<EditarEventoState> {
+  late final EventoRepository _repository;
+
+  @override
+  EditarEventoState build() {
+    _repository = ref.watch(eventoRepositoryProvider);
+    return const EditarEventoInicial();
+  }
+
+  // Actualiza un evento existente.
+  Future<EventModel?> actualizarEvento({
+    required EventModel eventoOriginal,
+    required String nombre,
+    required DateTime fecha,
+    required String lugar,
+    required bool entradaLibre,
+    String? descripcion,
+    File? nuevaImagen,
+    File? nuevoFlyer,
+    required bool eliminarImagen,
+    required bool eliminarFlyer,
+    required List<CategoriaModel> categorias,
+  }) async {
+    state = const EditarEventoCargando();
+
+    try {
+      final eventoActualizado = await _repository.actualizarEvento(
+        eventoOriginal: eventoOriginal,
+        nombre: nombre,
+        fecha: fecha,
+        lugar: lugar,
+        entradaLibre: entradaLibre,
+        descripcion: descripcion,
+        nuevaImagen: nuevaImagen,
+        nuevoFlyer: nuevoFlyer,
+        eliminarImagen: eliminarImagen,
+        eliminarFlyer: eliminarFlyer,
+        categorias: categorias,
+      );
+
+      state = EditarEventoExitoso(evento: eventoActualizado);
+      return eventoActualizado;
+    } catch (e) {
+      state = EditarEventoError(
+        mensaje: e.toString().replaceAll('Exception: ', ''),
+      );
+      return null;
+    }
+  }
+
+  // Reinicia el estado.
+  void reiniciar() {
+    state = const EditarEventoInicial();
+  }
+}
+
 // Estado para eliminar eventos.
 sealed class EliminarEventoState {
   const EliminarEventoState();
@@ -309,6 +395,33 @@ class EventosOrganizadorNotifier extends Notifier<EventosOrganizadorState> {
       state = estadoActual.copyWith(
         eventos: [evento, ...estadoActual.eventos],
       );
+    }
+  }
+
+  // Actualiza un evento en la lista.
+  void actualizarEvento(EventModel eventoActualizado) {
+    final estadoActual = state;
+    if (estadoActual is EventosOrganizadorExitoso) {
+      final eventosActualizados = estadoActual.eventos.map((evento) {
+        if (evento.id == eventoActualizado.id) {
+          return eventoActualizado;
+        }
+        return evento;
+      }).toList();
+
+      state = estadoActual.copyWith(eventos: eventosActualizados);
+    }
+  }
+
+  // Elimina un evento de la lista.
+  void eliminarEvento(int idEvento) {
+    final estadoActual = state;
+    if (estadoActual is EventosOrganizadorExitoso) {
+      final eventosActualizados = estadoActual.eventos
+          .where((evento) => evento.id != idEvento)
+          .toList();
+
+      state = estadoActual.copyWith(eventos: eventosActualizados);
     }
   }
 

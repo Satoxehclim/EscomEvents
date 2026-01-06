@@ -42,6 +42,21 @@ abstract class EventoRepository {
     required List<CategoriaModel> categorias,
   });
 
+  // Actualiza un evento existente con sus imágenes y categorías.
+  Future<EventModel> actualizarEvento({
+    required EventModel eventoOriginal,
+    required String nombre,
+    required DateTime fecha,
+    required String lugar,
+    required bool entradaLibre,
+    String? descripcion,
+    File? nuevaImagen,
+    File? nuevoFlyer,
+    required bool eliminarImagen,
+    required bool eliminarFlyer,
+    required List<CategoriaModel> categorias,
+  });
+
   // Elimina un evento y todos sus recursos asociados.
   Future<void> eliminarEvento(EventModel evento);
 
@@ -434,6 +449,211 @@ class EventoRepositoryImpl implements EventoRepository {
     }
   }
 
+  @override
+  Future<EventModel> actualizarEvento({
+    required EventModel eventoOriginal,
+    required String nombre,
+    required DateTime fecha,
+    required String lugar,
+    required bool entradaLibre,
+    String? descripcion,
+    File? nuevaImagen,
+    File? nuevoFlyer,
+    required bool eliminarImagen,
+    required bool eliminarFlyer,
+    required List<CategoriaModel> categorias,
+  }) async {
+    // Guarda los datos originales para rollback.
+    final datosOriginales = {
+      'nombre': eventoOriginal.nombre,
+      'fecha': eventoOriginal.fecha.toIso8601String(),
+      'lugar': eventoOriginal.lugar,
+      'entrada_libre': eventoOriginal.entradaLibre,
+      'descripcion': eventoOriginal.descripcion,
+      'imagen': eventoOriginal.imageUrl,
+      'flyer': eventoOriginal.flyer,
+    };
+    final categoriasOriginales = eventoOriginal.categorias;
+
+    String? nuevaRutaImagen;
+    String? nuevaRutaFlyer;
+    String? urlImagenFinal = eventoOriginal.imageUrl;
+    String? urlFlyerFinal = eventoOriginal.flyer;
+
+    try {
+      // Maneja la imagen principal.
+      if (eliminarImagen && eventoOriginal.imageUrl != null) {
+        // Elimina la imagen actual del storage.
+        await _eliminarImagenDeUrl(eventoOriginal.imageUrl!);
+        urlImagenFinal = null;
+      }
+
+      if (nuevaImagen != null) {
+        // Sube la nueva imagen.
+        final resultado = await _subirImagenConRuta(
+          archivo: nuevaImagen,
+          idUsuario: eventoOriginal.idOrganizador,
+          idEvento: eventoOriginal.id,
+          esFlyer: false,
+        );
+        nuevaRutaImagen = resultado.ruta;
+        urlImagenFinal = resultado.url;
+
+        // Elimina la imagen anterior si existía.
+        if (eventoOriginal.imageUrl != null) {
+          await _eliminarImagenDeUrl(eventoOriginal.imageUrl!);
+        }
+      }
+
+      // Maneja el flyer.
+      if (eliminarFlyer && eventoOriginal.flyer != null) {
+        await _eliminarImagenDeUrl(eventoOriginal.flyer!);
+        urlFlyerFinal = null;
+      }
+
+      if (nuevoFlyer != null) {
+        final resultado = await _subirImagenConRuta(
+          archivo: nuevoFlyer,
+          idUsuario: eventoOriginal.idOrganizador,
+          idEvento: eventoOriginal.id,
+          esFlyer: true,
+        );
+        nuevaRutaFlyer = resultado.ruta;
+        urlFlyerFinal = resultado.url;
+
+        // Elimina el flyer anterior si existía.
+        if (eventoOriginal.flyer != null) {
+          await _eliminarImagenDeUrl(eventoOriginal.flyer!);
+        }
+      }
+
+      // Actualiza el evento en la base de datos.
+      final datosActualizacion = {
+        'nombre': nombre,
+        'fecha': fecha.toIso8601String(),
+        'lugar': lugar,
+        'entrada_libre': entradaLibre,
+        'descripcion': descripcion,
+        'imagen': urlImagenFinal,
+        'flyer': urlFlyerFinal,
+      };
+
+      await _supabase
+          .from('Evento')
+          .update(datosActualizacion)
+          .eq('id_evento', eventoOriginal.id);
+
+      // Actualiza las categorías solo si cambiaron.
+      final idsOriginales = categoriasOriginales.map((c) => c.id).toSet();
+      final idsNuevos = categorias.map((c) => c.id).toSet();
+
+      // Verifica si las categorías cambiaron.
+      final categoriasCambiaron = !_setIguales(idsOriginales, idsNuevos);
+
+      if (categoriasCambiaron) {
+        // Elimina las relaciones existentes.
+        await _supabase
+            .from('Evento_Categoria')
+            .delete()
+            .eq('id_evento', eventoOriginal.id);
+
+        // Inserta las nuevas relaciones.
+        if (categorias.isNotEmpty) {
+          final relacionesCategorias = categorias
+              .map((cat) => {
+                    'id_evento': eventoOriginal.id,
+                    'id_categoria': cat.id,
+                  })
+              .toList();
+
+          await _supabase.from('Evento_Categoria').insert(relacionesCategorias);
+        }
+      }
+
+      // Retorna el evento actualizado.
+      return eventoOriginal.copyWith(
+        nombre: nombre,
+        fecha: fecha,
+        lugar: lugar,
+        entradaLibre: entradaLibre,
+        descripcion: descripcion,
+        imageUrl: urlImagenFinal,
+        flyer: urlFlyerFinal,
+        categorias: categorias,
+      );
+    } catch (e) {
+      // Rollback: restaura los datos originales.
+      await _ejecutarRollbackActualizacion(
+        idEvento: eventoOriginal.id,
+        datosOriginales: datosOriginales,
+        categoriasOriginales: categoriasOriginales,
+        nuevaRutaImagen: nuevaRutaImagen,
+        nuevaRutaFlyer: nuevaRutaFlyer,
+      );
+
+      if (e is PostgrestException) {
+        throw Exception('Error al actualizar evento: ${e.message}');
+      } else if (e is StorageException) {
+        throw Exception('Error al procesar imagen: ${e.message}');
+      }
+      rethrow;
+    }
+  }
+
+  // Ejecuta el rollback de una actualización fallida.
+  Future<void> _ejecutarRollbackActualizacion({
+    required int idEvento,
+    required Map<String, dynamic> datosOriginales,
+    required List<CategoriaModel> categoriasOriginales,
+    String? nuevaRutaImagen,
+    String? nuevaRutaFlyer,
+  }) async {
+    // Elimina las imágenes nuevas que se subieron.
+    final rutasAEliminar = <String>[
+      if (nuevaRutaImagen != null) nuevaRutaImagen,
+      if (nuevaRutaFlyer != null) nuevaRutaFlyer,
+    ];
+
+    if (rutasAEliminar.isNotEmpty) {
+      try {
+        await _supabase.storage.from(_bucket).remove(rutasAEliminar);
+      } catch (_) {
+        // Ignora errores al eliminar imágenes durante rollback.
+      }
+    }
+
+    // Restaura los datos originales del evento.
+    try {
+      await _supabase
+          .from('Evento')
+          .update(datosOriginales)
+          .eq('id_evento', idEvento);
+    } catch (_) {
+      // Ignora errores durante rollback.
+    }
+
+    // Restaura las categorías originales.
+    try {
+      await _supabase
+          .from('Evento_Categoria')
+          .delete()
+          .eq('id_evento', idEvento);
+
+      if (categoriasOriginales.isNotEmpty) {
+        final relacionesCategorias = categoriasOriginales
+            .map((cat) => {
+                  'id_evento': idEvento,
+                  'id_categoria': cat.id,
+                })
+            .toList();
+
+        await _supabase.from('Evento_Categoria').insert(relacionesCategorias);
+      }
+    } catch (_) {
+      // Ignora errores durante rollback.
+    }
+  }
+
   // Elimina una imagen del storage usando su URL pública.
   Future<void> _eliminarImagenDeUrl(String urlPublica) async {
     try {
@@ -451,6 +671,12 @@ class EventoRepositoryImpl implements EventoRepository {
     } catch (_) {
       // Ignora errores al eliminar imágenes.
     }
+  }
+
+  // Compara si dos conjuntos de enteros son iguales.
+  bool _setIguales(Set<int> a, Set<int> b) {
+    if (a.length != b.length) return false;
+    return a.containsAll(b);
   }
 
   @override
