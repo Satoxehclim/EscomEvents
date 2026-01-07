@@ -5,6 +5,7 @@ import 'package:escomevents_app/features/auth/view/pages/registro_page.dart';
 import 'package:escomevents_app/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:escomevents_app/features/eventos/views/pages/admin_eventos_page.dart';
 import 'package:escomevents_app/features/eventos/views/pages/eventos.dart';
+import 'package:escomevents_app/features/eventos/views/pages/mis_eventos_estudiante_page.dart';
 import 'package:escomevents_app/features/eventos/views/pages/mis_eventos_page.dart';
 import 'package:escomevents_app/main.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,6 +19,7 @@ abstract class RutasApp {
   static const String inicio = '/inicio';
   static const String eventos = '/eventos';
   static const String misEventos = '/mis-eventos';
+  static const String misEventosEstudiante = '/mis-eventos-estudiante';
   static const String adminEventos = '/admin-eventos';
 }
 
@@ -29,6 +31,9 @@ const _rutasOrganizador = [RutasApp.misEventos];
 
 // Rutas exclusivas para administradores.
 const _rutasAdministrador = [RutasApp.adminEventos];
+
+// Rutas exclusivas para estudiantes.
+const _rutasEstudiante = [RutasApp.misEventosEstudiante];
 
 // Provider para el router que depende del estado de autenticación.
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -66,6 +71,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         // Rutas de administrador: solo administradores.
         if (_rutasAdministrador.contains(rutaActual)) {
           if (rol != RolUsuario.administrador) {
+            return RutasApp.inicio;
+          }
+        }
+
+        // Rutas de estudiante: solo estudiantes.
+        if (_rutasEstudiante.contains(rutaActual)) {
+          if (rol != RolUsuario.estudiante) {
             return RutasApp.inicio;
           }
         }
@@ -123,6 +135,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: RutasApp.adminEventos,
             name: 'adminEventos',
             builder: (context, state) => const AdminEventosPage(),
+          ),
+          // Rutas exclusivas para estudiantes.
+          GoRoute(
+            path: RutasApp.misEventosEstudiante,
+            name: 'misEventosEstudiante',
+            builder: (context, state) => const MisEventosEstudiantePage(),
           ),
         ],
       ),

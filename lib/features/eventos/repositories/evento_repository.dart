@@ -99,6 +99,14 @@ abstract class EventoRepository {
 
   // Obtiene el nombre del organizador por su ID.
   Future<String?> obtenerNombreOrganizador(String idOrganizador);
+
+  // Obtiene los eventos a los que el estudiante ha confirmado asistencia.
+  Future<ResultadoPaginado<EventModel>> obtenerEventosConAsistencia({
+    required String idPerfil,
+    int pagina = 0,
+    int tamanoPagina = 10,
+    FiltroEventos? filtros,
+  });
 }
 
 // Implementación del repositorio de eventos usando Supabase.
@@ -1015,6 +1023,74 @@ class EventoRepositoryImpl implements EventoRepository {
       throw Exception('Error al eliminar evento: ${e.message}');
     } on StorageException catch (e) {
       throw Exception('Error al eliminar archivos: ${e.message}');
+    }
+  }
+
+  @override
+  Future<ResultadoPaginado<EventModel>> obtenerEventosConAsistencia({
+    required String idPerfil,
+    int pagina = 0,
+    int tamanoPagina = 10,
+    FiltroEventos? filtros,
+  }) async {
+    try {
+      // Primero obtenemos los IDs de eventos con asistencia del estudiante.
+      final asistenciasResponse = await _supabase
+          .from('Asistencia')
+          .select('id_evento')
+          .eq('id_perfil', idPerfil);
+
+      final idsEventos = (asistenciasResponse as List)
+          .map((e) => e['id_evento'] as int)
+          .toList();
+
+      if (idsEventos.isEmpty) {
+        return const ResultadoPaginado(
+          datos: [],
+          hayMas: false,
+          paginaActual: 0,
+        );
+      }
+
+      // Construye la query para obtener los eventos.
+      var query = _supabase
+          .from('Evento')
+          .select('*, Evento_Categoria(id_categoria, Categoria(*))')
+          .inFilter('id_evento', idsEventos);
+
+      // Aplica filtros de fecha.
+      final ahora = DateTime.now().toIso8601String();
+      final estado = filtros?.estado ?? FiltroEstado.todos;
+
+      if (estado == FiltroEstado.proximos) {
+        query = query.gte('fecha', ahora);
+      } else if (estado == FiltroEstado.pasados) {
+        query = query.lt('fecha', ahora);
+      }
+
+      // Determina el orden.
+      final orden = filtros?.orden ?? OrdenEvento.masProximos;
+      final ordenAscendente =
+          orden == OrdenEvento.masProximos || orden == OrdenEvento.masAntiguos;
+
+      // Paginación.
+      final inicio = pagina * tamanoPagina;
+
+      final response = await query
+          .order('fecha', ascending: ordenAscendente)
+          .range(inicio, inicio + tamanoPagina);
+
+      final eventos = (response as List).map((e) {
+        return EventModel.fromMap(e);
+      }).toList();
+
+      return ResultadoPaginado(
+        datos: eventos,
+        hayMas: eventos.length == tamanoPagina + 1,
+        paginaActual: pagina,
+      );
+    } on PostgrestException catch (e) {
+      throw Exception('Error al obtener eventos: ${e.message}');
     }
   }
 }

@@ -836,3 +836,165 @@ class ValidarEventoNotifier extends Notifier<ValidarEventoState> {
     state = const ValidarEventoInicial();
   }
 }
+
+// Estado para la lista de eventos con asistencia del estudiante.
+sealed class EventosEstudianteState {
+  const EventosEstudianteState();
+}
+
+class EventosEstudianteInicial extends EventosEstudianteState {
+  const EventosEstudianteInicial();
+}
+
+class EventosEstudianteCargando extends EventosEstudianteState {
+  final List<EventModel> eventosAnteriores;
+  const EventosEstudianteCargando({this.eventosAnteriores = const []});
+}
+
+class EventosEstudianteExitoso extends EventosEstudianteState {
+  final List<EventModel> eventos;
+  final bool hayMas;
+  final int paginaActual;
+  final bool cargandoMas;
+
+  const EventosEstudianteExitoso({
+    required this.eventos,
+    required this.hayMas,
+    required this.paginaActual,
+    this.cargandoMas = false,
+  });
+
+  EventosEstudianteExitoso copyWith({
+    List<EventModel>? eventos,
+    bool? hayMas,
+    int? paginaActual,
+    bool? cargandoMas,
+  }) {
+    return EventosEstudianteExitoso(
+      eventos: eventos ?? this.eventos,
+      hayMas: hayMas ?? this.hayMas,
+      paginaActual: paginaActual ?? this.paginaActual,
+      cargandoMas: cargandoMas ?? this.cargandoMas,
+    );
+  }
+}
+
+class EventosEstudianteError extends EventosEstudianteState {
+  final String mensaje;
+  final List<EventModel> eventosAnteriores;
+
+  const EventosEstudianteError({
+    required this.mensaje,
+    this.eventosAnteriores = const [],
+  });
+}
+
+// Provider para los eventos con asistencia del estudiante.
+final eventosEstudianteProvider =
+    NotifierProvider<EventosEstudianteNotifier, EventosEstudianteState>(
+  EventosEstudianteNotifier.new,
+);
+
+// Notifier para manejar la lista de eventos del estudiante.
+class EventosEstudianteNotifier extends Notifier<EventosEstudianteState> {
+  late final EventoRepository _repository;
+  FiltroEventos? _filtrosActuales;
+  String? _idPerfil;
+
+  @override
+  EventosEstudianteState build() {
+    _repository = ref.watch(eventoRepositoryProvider);
+    return const EventosEstudianteInicial();
+  }
+
+  // Carga los eventos con asistencia del estudiante.
+  Future<void> cargarEventos(String idPerfil, {FiltroEventos? filtros}) async {
+    _idPerfil = idPerfil;
+    _filtrosActuales = filtros;
+
+    // Mantiene los eventos anteriores mientras carga.
+    final eventosAnteriores = switch (state) {
+      EventosEstudianteExitoso(eventos: final e) => e,
+      EventosEstudianteCargando(eventosAnteriores: final e) => e,
+      EventosEstudianteError(eventosAnteriores: final e) => e,
+      _ => <EventModel>[],
+    };
+
+    state = EventosEstudianteCargando(eventosAnteriores: eventosAnteriores);
+
+    try {
+      final resultado = await _repository.obtenerEventosConAsistencia(
+        idPerfil: idPerfil,
+        pagina: 0,
+        filtros: filtros,
+      );
+
+      state = EventosEstudianteExitoso(
+        eventos: resultado.datos,
+        hayMas: resultado.hayMas,
+        paginaActual: resultado.paginaActual,
+      );
+    } catch (e) {
+      state = EventosEstudianteError(
+        mensaje: e.toString().replaceAll('Exception: ', ''),
+        eventosAnteriores: eventosAnteriores,
+      );
+    }
+  }
+
+  // Carga más eventos (paginación).
+  Future<void> cargarMasEventos() async {
+    final estadoActual = state;
+
+    if (estadoActual is! EventosEstudianteExitoso ||
+        !estadoActual.hayMas ||
+        estadoActual.cargandoMas ||
+        _idPerfil == null) {
+      return;
+    }
+
+    state = estadoActual.copyWith(cargandoMas: true);
+
+    try {
+      final resultado = await _repository.obtenerEventosConAsistencia(
+        idPerfil: _idPerfil!,
+        pagina: estadoActual.paginaActual + 1,
+        filtros: _filtrosActuales,
+      );
+
+      state = EventosEstudianteExitoso(
+        eventos: [...estadoActual.eventos, ...resultado.datos],
+        hayMas: resultado.hayMas,
+        paginaActual: resultado.paginaActual,
+        cargandoMas: false,
+      );
+    } catch (e) {
+      state = estadoActual.copyWith(cargandoMas: false);
+    }
+  }
+
+  // Recarga los eventos.
+  Future<void> recargar() async {
+    if (_idPerfil != null) {
+      await cargarEventos(_idPerfil!, filtros: _filtrosActuales);
+    }
+  }
+
+  // Elimina un evento de la lista (cuando se cancela asistencia).
+  void eliminarEvento(int idEvento) {
+    final estadoActual = state;
+    if (estadoActual is EventosEstudianteExitoso) {
+      final nuevosEventos = estadoActual.eventos
+          .where((evento) => evento.id != idEvento)
+          .toList();
+      state = estadoActual.copyWith(eventos: nuevosEventos);
+    }
+  }
+
+  // Reinicia el estado.
+  void reiniciar() {
+    _filtrosActuales = null;
+    _idPerfil = null;
+    state = const EventosEstudianteInicial();
+  }
+}

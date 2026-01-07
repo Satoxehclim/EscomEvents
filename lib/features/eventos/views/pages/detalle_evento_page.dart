@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 enum OrigenDetalle {
   misEventos,
   eventos,
+  misEventosEstudiante,
 }
 
 // Página que muestra los detalles completos de un evento.
@@ -329,6 +330,13 @@ class _DetalleEventoPageState extends ConsumerState<DetalleEventoPage> {
             .read(asistenciaProvider.notifier)
             .cancelarAsistencia(estado.asistencia.id);
 
+        if (exito && widget.origen == OrigenDetalle.misEventosEstudiante) {
+          // Elimina el evento de la lista de eventos del estudiante.
+          ref
+              .read(eventosEstudianteProvider.notifier)
+              .eliminarEvento(_eventoActual.id);
+        }
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -340,6 +348,11 @@ class _DetalleEventoPageState extends ConsumerState<DetalleEventoPage> {
               backgroundColor: exito ? Colors.orange : Colors.red,
             ),
           );
+
+          // Si viene de mis eventos estudiante, vuelve atrás.
+          if (exito && widget.origen == OrigenDetalle.misEventosEstudiante) {
+            Navigator.of(context).pop();
+          }
         }
       },
     );

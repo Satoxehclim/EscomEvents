@@ -45,7 +45,7 @@ class _BienvenidaPageState extends ConsumerState<BienvenidaPage> {
         rutasBase.add(RutasApp.adminEventos);
         break;
       case RolUsuario.estudiante:
-        // Los estudiantes solo tienen las rutas base.
+        rutasBase.add(RutasApp.misEventosEstudiante);
         break;
     }
 
@@ -104,7 +104,13 @@ class _BienvenidaPageState extends ConsumerState<BienvenidaPage> {
         );
         break;
       case RolUsuario.estudiante:
-        // Los estudiantes solo tienen los items base.
+        itemsBase.add(
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.bookmark_outline),
+            activeIcon: Icon(Icons.bookmark),
+            label: 'Mis Eventos',
+          ),
+        );
         break;
     }
 
