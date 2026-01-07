@@ -88,11 +88,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // Shell route para la navegación con BottomNavigationBar.
       ShellRoute(
         builder: (context, state, child) {
-          // Obtiene el rol del usuario desde Riverpod.
-          final container = ProviderScope.containerOf(context);
-          final perfil = container.read(perfilActualProvider);
-          final rol = perfil?.rol ?? RolUsuario.estudiante;
-          return BienvenidaPage(rol: rol, child: child);
+          return BienvenidaPage(child: child);
         },
         routes: [
           // Rutas accesibles para todos los usuarios autenticados.

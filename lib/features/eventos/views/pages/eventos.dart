@@ -1,5 +1,6 @@
 import 'package:escomevents_app/core/utils/paleta.dart';
 import 'package:escomevents_app/features/auth/view/pages/bienvenida_page.dart';
+import 'package:escomevents_app/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:escomevents_app/features/eventos/models/evento_model.dart';
 import 'package:escomevents_app/features/eventos/models/filtro_eventos_model.dart';
 import 'package:escomevents_app/features/eventos/viewmodel/evento_viewmodel.dart';
@@ -92,7 +93,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
       MaterialPageRoute(
         builder: (context) => DetalleEventoPage(
           evento: evento,
-          rol: RolUsuario.estudiante,
+          rol: ref.read(perfilActualProvider)?.rol ?? RolUsuario.estudiante,
           origen: OrigenDetalle.eventos,
           nombreOrganizador: nombreOrganizador,
         ),

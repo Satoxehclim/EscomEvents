@@ -88,10 +88,13 @@ class _MisEventosPageState extends ConsumerState<MisEventosPage> {
     }
   }
 
+  // Obtiene el rol actual del usuario.
+  RolUsuario? get _rolActual => ref.read(perfilActualProvider)?.rol;
+
   // Determina si se muestran filtros avanzados según el rol.
   bool get _mostrarFiltrosAvanzados =>
-      widget.rol == RolUsuario.organizador ||
-      widget.rol == RolUsuario.administrador;
+      _rolActual == RolUsuario.organizador ||
+      _rolActual == RolUsuario.administrador;
 
   // Muestra el modal de filtros.
   void _mostrarFiltros() {
@@ -116,7 +119,7 @@ class _MisEventosPageState extends ConsumerState<MisEventosPage> {
       MaterialPageRoute(
         builder: (context) => DetalleEventoPage(
           evento: evento,
-          rol: widget.rol,
+          rol: _rolActual ?? RolUsuario.estudiante,
           origen: OrigenDetalle.misEventos,
           nombreOrganizador: nombreOrganizador,
           onEventoActualizado: (eventoActualizado) {
