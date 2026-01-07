@@ -32,6 +32,12 @@ abstract class AsistenciaRepository {
 
   // Obtiene todas las asistencias de un evento.
   Future<List<AsistenciaModel>> obtenerAsistenciasPorEvento(int idEvento);
+
+  // Marca la asistencia de un estudiante (asistio = 1).
+  Future<AsistenciaModel> marcarAsistencia({
+    required String idPerfil,
+    required int idEvento,
+  });
 }
 
 // Implementación del repositorio de asistencia usando Supabase.
@@ -184,6 +190,53 @@ class AsistenciaRepositoryImpl implements AsistenciaRepository {
         error: e,
       );
       return [];
+    }
+  }
+
+  @override
+  Future<AsistenciaModel> marcarAsistencia({
+    required String idPerfil,
+    required int idEvento,
+  }) async {
+    try {
+      // Verifica si existe el registro de asistencia.
+      final asistenciaExistente = await obtenerAsistencia(
+        idPerfil: idPerfil,
+        idEvento: idEvento,
+      );
+
+      if (asistenciaExistente == null) {
+        throw Exception('El estudiante no está registrado en este evento');
+      }
+
+      if (asistenciaExistente.asistio == 1) {
+        throw Exception('La asistencia ya fue registrada previamente');
+      }
+
+      // Actualiza el registro de asistencia.
+      final response = await _supabase
+          .from('Asistencia')
+          .update({'asistio': 1})
+          .eq('id_perfil', idPerfil)
+          .eq('id_evento', idEvento)
+          .select()
+          .single();
+
+      return AsistenciaModel.fromMap(response);
+    } on PostgrestException catch (e) {
+      log(
+        'Error al marcar asistencia: ${e.message}',
+        name: 'AsistenciaRepository',
+        error: e,
+      );
+      throw Exception('Error al marcar asistencia: ${e.message}');
+    } catch (e) {
+      log(
+        'Error al marcar asistencia: $e',
+        name: 'AsistenciaRepository',
+        error: e,
+      );
+      rethrow;
     }
   }
 }

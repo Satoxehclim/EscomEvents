@@ -114,3 +114,67 @@ class AsistenciaNotifier extends Notifier<AsistenciaEventoState> {
     state = const AsistenciaEventoInicial();
   }
 }
+
+// Resultado del escaneo de asistencia.
+sealed class ResultadoEscaneoAsistencia {
+  const ResultadoEscaneoAsistencia();
+}
+
+class EscaneoExitoso extends ResultadoEscaneoAsistencia {
+  final String nombreEstudiante;
+  const EscaneoExitoso(this.nombreEstudiante);
+}
+
+class EscaneoYaRegistrado extends ResultadoEscaneoAsistencia {
+  final String nombreEstudiante;
+  const EscaneoYaRegistrado(this.nombreEstudiante);
+}
+
+class EscaneoNoRegistrado extends ResultadoEscaneoAsistencia {
+  const EscaneoNoRegistrado();
+}
+
+class EscaneoError extends ResultadoEscaneoAsistencia {
+  final String mensaje;
+  const EscaneoError(this.mensaje);
+}
+
+// Provider para manejar el escaneo de asistencia del organizador.
+final escaneoAsistenciaProvider =
+    NotifierProvider<EscaneoAsistenciaNotifier, void>(
+  EscaneoAsistenciaNotifier.new,
+);
+
+// Notifier para manejar el escaneo de asistencia.
+class EscaneoAsistenciaNotifier extends Notifier<void> {
+  late final AsistenciaRepository _repository;
+
+  @override
+  void build() {
+    _repository = ref.watch(asistenciaRepositoryProvider);
+  }
+
+  // Marca la asistencia de un estudiante escaneando su QR.
+  Future<ResultadoEscaneoAsistencia> marcarAsistencia({
+    required String idPerfil,
+    required String nombreEstudiante,
+    required int idEvento,
+  }) async {
+    try {
+      await _repository.marcarAsistencia(
+        idPerfil: idPerfil,
+        idEvento: idEvento,
+      );
+      return EscaneoExitoso(nombreEstudiante);
+    } catch (e) {
+      final mensaje = e.toString().replaceAll('Exception: ', '');
+      if (mensaje.contains('ya fue registrada')) {
+        return EscaneoYaRegistrado(nombreEstudiante);
+      }
+      if (mensaje.contains('no está registrado')) {
+        return const EscaneoNoRegistrado();
+      }
+      return EscaneoError(mensaje);
+    }
+  }
+}

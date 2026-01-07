@@ -5,7 +5,9 @@ import 'package:escomevents_app/features/eventos/models/evento_model.dart';
 import 'package:escomevents_app/features/eventos/viewmodel/asistencia_viewmodel.dart';
 import 'package:escomevents_app/features/eventos/viewmodel/evento_viewmodel.dart';
 import 'package:escomevents_app/features/eventos/views/widgets/detalle_evento_widgets.dart';
+import 'package:escomevents_app/features/eventos/views/widgets/escaner_asistencia.dart';
 import 'package:escomevents_app/features/eventos/views/widgets/formulario_editar_evento.dart';
+import 'package:escomevents_app/core/utils/paleta.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -130,11 +132,46 @@ class _DetalleEventoPageState extends ConsumerState<DetalleEventoPage> {
     return _eventoActual.validado == false;
   }
 
+  // Determina si se muestra el FAB de escanear asistencia.
+  bool get _mostrarFabEscanear {
+    // Solo para organizadores viendo sus propios eventos validados.
+    if (_rolActual != RolUsuario.organizador) return false;
+    if (widget.origen != OrigenDetalle.misEventos) return false;
+    if (!_eventoActual.validado) return false;
+    if (_eventoActual.entradaLibre) return false;
+    // Solo si el evento no requiere entrada libre (requiere control de asistencia).
+    // O siempre mostrar para eventos validados.
+    return true;
+  }
+
+  // Abre el escáner de asistencia.
+  void _abrirEscanerAsistencia() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => EscanerAsistenciaPage(
+          idEvento: _eventoActual.id,
+          nombreEvento: _eventoActual.nombre,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
+      floatingActionButton: _mostrarFabEscanear
+          ? FloatingActionButton.extended(
+              onPressed: _abrirEscanerAsistencia,
+              icon: const Icon(Icons.qr_code_scanner),
+              label: const Text('Pasar Asistencia'),
+              backgroundColor:
+                  isDark ? AppColors.darkPrimary : AppColors.lightPrimary,
+              foregroundColor: Colors.white,
+            )
+          : null,
       body: CustomScrollView(
         slivers: [
           // AppBar con imagen.
