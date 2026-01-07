@@ -945,3 +945,108 @@ class FlyerEvento extends StatelessWidget {
     );
   }
 }
+
+// Botón de asistencia para estudiantes.
+class BotonAsistencia extends StatelessWidget {
+  final bool estaRegistrado;
+  final bool estaCargando;
+  final VoidCallback onRegistrar;
+  final VoidCallback onCancelar;
+
+  const BotonAsistencia({
+    required this.estaRegistrado,
+    required this.estaCargando,
+    required this.onRegistrar,
+    required this.onCancelar,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    if (estaCargando) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Center(
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: isDark ? AppColors.darkPrimary : AppColors.lightPrimary,
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (estaRegistrado) {
+      return CustomButton(
+        texto: 'Cancelar asistencia',
+        tipo: CustomButtonType.dangerOutlined,
+        iconoInicio: Icons.event_busy,
+        onPressed: onCancelar,
+      );
+    }
+
+    return CustomButton(
+      texto: 'Asistiré',
+      tipo: CustomButtonType.primary,
+      iconoInicio: Icons.event_available,
+      onPressed: onRegistrar,
+    );
+  }
+}
+
+// Diálogo de confirmación para cancelar asistencia.
+class DialogoCancelarAsistencia {
+  static void mostrar({
+    required BuildContext context,
+    required String nombreEvento,
+    required VoidCallback onConfirmar,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor:
+            isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.event_busy, color: Colors.orange, size: 28),
+            SizedBox(width: 12),
+            Text('Cancelar asistencia'),
+          ],
+        ),
+        content: Text(
+          '¿Estás seguro de que deseas cancelar tu asistencia a "$nombreEvento"?',
+        ),
+        actions: [
+          CustomButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            texto: 'No, mantener',
+            tipo: CustomButtonType.outlined,
+            anchoCompleto: false,
+          ),
+          CustomButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              onConfirmar();
+            },
+            texto: 'Sí, cancelar',
+            tipo: CustomButtonType.danger,
+            anchoCompleto: false,
+          ),
+        ],
+      ),
+    );
+  }
+}

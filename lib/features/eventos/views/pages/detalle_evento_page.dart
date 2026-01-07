@@ -1,5 +1,8 @@
+import 'package:escomevents_app/features/auth/models/perfil_model.dart';
 import 'package:escomevents_app/features/auth/view/pages/bienvenida_page.dart';
+import 'package:escomevents_app/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:escomevents_app/features/eventos/models/evento_model.dart';
+import 'package:escomevents_app/features/eventos/viewmodel/asistencia_viewmodel.dart';
 import 'package:escomevents_app/features/eventos/viewmodel/evento_viewmodel.dart';
 import 'package:escomevents_app/features/eventos/views/widgets/detalle_evento_widgets.dart';
 import 'package:escomevents_app/features/eventos/views/widgets/formulario_editar_evento.dart';
@@ -45,14 +48,41 @@ class _DetalleEventoPageState extends ConsumerState<DetalleEventoPage> {
   void initState() {
     super.initState();
     _eventoActual = widget.evento;
+    // Verifica asistencia si es estudiante.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final perfil = ref.read(perfilActualProvider);
+      if (perfil?.rol == RolUsuario.estudiante) {
+        _verificarAsistencia();
+      }
+    });
   }
+
+  // Verifica si el estudiante está registrado al evento.
+  void _verificarAsistencia() {
+    final perfil = ref.read(perfilActualProvider);
+    if (perfil != null) {
+      ref.read(asistenciaProvider.notifier).verificarAsistencia(
+            idPerfil: perfil.idPerfil,
+            idEvento: _eventoActual.id,
+          );
+    }
+  }
+
+  // Determina si el botón de asistencia debe mostrarse.
+  bool get _mostrarBotonAsistencia {
+    final perfil = ref.read(perfilActualProvider);
+    return perfil?.rol == RolUsuario.estudiante;
+  }
+
+  // Obtiene el rol actual del usuario.
+  RolUsuario? get _rolActual => ref.read(perfilActualProvider)?.rol;
 
   // Determina si el usuario puede editar el evento.
   bool get _puedeEditar {
     // Solo el organizador puede editar sus propios eventos.
     // o el admin puede editar cualquiera.
-    if (widget.rol == RolUsuario.administrador) return true;
-    if (widget.rol == RolUsuario.organizador &&
+    if (_rolActual == RolUsuario.administrador) return true;
+    if (_rolActual == RolUsuario.organizador &&
         widget.origen == OrigenDetalle.misEventos) {
       return true;
     }
@@ -61,8 +91,8 @@ class _DetalleEventoPageState extends ConsumerState<DetalleEventoPage> {
 
   // Determina si se muestra el estado de validación.
   bool get _mostrarValidado {
-    if (widget.rol == RolUsuario.administrador) return true;
-    if (widget.rol == RolUsuario.organizador &&
+    if (_rolActual == RolUsuario.administrador) return true;
+    if (_rolActual == RolUsuario.organizador &&
         widget.origen == OrigenDetalle.misEventos) {
       return true;
     }
@@ -71,8 +101,8 @@ class _DetalleEventoPageState extends ConsumerState<DetalleEventoPage> {
 
   // Determina si se muestra created_at.
   bool get _mostrarCreatedAt {
-    if (widget.rol == RolUsuario.administrador) return true;
-    if (widget.rol == RolUsuario.organizador &&
+    if (_rolActual == RolUsuario.administrador) return true;
+    if (_rolActual == RolUsuario.organizador &&
         widget.origen == OrigenDetalle.misEventos) {
       return true;
     }
@@ -84,8 +114,8 @@ class _DetalleEventoPageState extends ConsumerState<DetalleEventoPage> {
 
   // Determina si se muestra el comentario del administrador.
   bool get _mostrarComentarioAdmin {
-    if (widget.rol != RolUsuario.administrador &&
-        widget.rol != RolUsuario.organizador) {
+    if (_rolActual != RolUsuario.administrador &&
+        _rolActual != RolUsuario.organizador) {
       return false;
     }
     final comentario = _eventoActual.comentarioAdmin;
@@ -94,7 +124,7 @@ class _DetalleEventoPageState extends ConsumerState<DetalleEventoPage> {
 
   // Determina si se muestran las acciones de administrador.
   bool get _mostrarAccionesAdmin {
-    if (widget.rol != RolUsuario.administrador) return false;
+    if (_rolActual != RolUsuario.administrador) return false;
     // Solo mostrar acciones si el evento está pendiente de validación.
     return _eventoActual.validado == false;
   }
@@ -187,8 +217,7 @@ class _DetalleEventoPageState extends ConsumerState<DetalleEventoPage> {
                       evento: _eventoActual,
                       mostrarValidado: _mostrarValidado,
                       mostrarCreatedAt: _mostrarCreatedAt,
-                      mostrarIdEvento:
-                          widget.rol == RolUsuario.administrador,
+                      mostrarIdEvento: _rolActual == RolUsuario.administrador,
                     ),
                   ],
 
@@ -207,6 +236,12 @@ class _DetalleEventoPageState extends ConsumerState<DetalleEventoPage> {
                       onAprobar: _aprobarEvento,
                       onRechazar: _mostrarDialogoRechazo,
                     ),
+                  ],
+
+                  // Botón de asistencia para estudiantes.
+                  if (_mostrarBotonAsistencia) ...[
+                    const SizedBox(height: 24),
+                    _construirBotonAsistencia(),
                   ],
 
                   const SizedBox(height: 40),
@@ -238,6 +273,75 @@ class _DetalleEventoPageState extends ConsumerState<DetalleEventoPage> {
             onEliminar: _mostrarDialogoEliminar,
           ),
       ],
+    );
+  }
+
+  // Construye el botón de asistencia para estudiantes.
+  Widget _construirBotonAsistencia() {
+    final asistenciaState = ref.watch(asistenciaProvider);
+    final perfil = ref.watch(perfilActualProvider);
+
+    // Determina el estado del botón.
+    final estaCargando = asistenciaState is AsistenciaEventoCargando;
+    final estaRegistrado = asistenciaState is AsistenciaEventoRegistrado;
+
+    return BotonAsistencia(
+      estaRegistrado: estaRegistrado,
+      estaCargando: estaCargando,
+      onRegistrar: () => _registrarAsistencia(perfil),
+      onCancelar: () => _cancelarAsistencia(asistenciaState),
+    );
+  }
+
+  // Registra la asistencia del estudiante.
+  Future<void> _registrarAsistencia(PerfilModel? perfil) async {
+    if (perfil == null) return;
+
+    final exito = await ref.read(asistenciaProvider.notifier).registrarAsistencia(
+          idPerfil: perfil.idPerfil,
+          idEvento: _eventoActual.id,
+          entradaLibre: _eventoActual.entradaLibre,
+        );
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            exito
+                ? '¡Te has registrado al evento!'
+                : 'Error al registrar asistencia',
+          ),
+          backgroundColor: exito ? Colors.green : Colors.red,
+        ),
+      );
+    }
+  }
+
+  // Cancela la asistencia del estudiante.
+  void _cancelarAsistencia(AsistenciaEventoState estado) {
+    if (estado is! AsistenciaEventoRegistrado) return;
+
+    DialogoCancelarAsistencia.mostrar(
+      context: context,
+      nombreEvento: _eventoActual.nombre,
+      onConfirmar: () async {
+        final exito = await ref
+            .read(asistenciaProvider.notifier)
+            .cancelarAsistencia(estado.asistencia.id);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                exito
+                    ? 'Has cancelado tu asistencia'
+                    : 'Error al cancelar asistencia',
+              ),
+              backgroundColor: exito ? Colors.orange : Colors.red,
+            ),
+          );
+        }
+      },
     );
   }
 
