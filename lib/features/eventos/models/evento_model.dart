@@ -97,7 +97,7 @@ class EventModel {
     return <String, dynamic>{
       'id_organizador': idOrganizador,
       'nombre': nombre,
-      'fecha': fecha.toIso8601String(),
+      'fecha': fecha.toUtc().toIso8601String(),
       'entrada_libre': entradaLibre,
       'descripcion': descripcion,
       'validado': validado,
@@ -112,9 +112,9 @@ class EventModel {
       'id_evento': id,
       'id_organizador': idOrganizador,
       'nombre': nombre,
-      'fecha': fecha.toIso8601String(),
-      'fecha_publicado': fechaPublicado?.toIso8601String(),
-      'created_at': fechaCreacion.toIso8601String(),
+      'fecha': fecha.toUtc().toIso8601String(),
+      'fecha_publicado': fechaPublicado?.toUtc().toIso8601String(),
+      'created_at': fechaCreacion.toUtc().toIso8601String(),
       'entrada_libre': entradaLibre,
       'descripcion': descripcion,
       'validado': validado,
@@ -131,18 +131,18 @@ class EventModel {
   }
 
   factory EventModel.fromMap(Map<String, dynamic> map) {
-    // Parsea la fecha desde string ISO 8601.
+    // Parsea la fecha desde string ISO 8601 y la convierte a hora local.
     DateTime parsearFecha(dynamic valor) {
       if (valor == null) return DateTime.now();
-      if (valor is DateTime) return valor;
-      if (valor is String) return DateTime.parse(valor);
+      if (valor is DateTime) return valor.toLocal();
+      if (valor is String) return DateTime.parse(valor).toLocal();
       return DateTime.now();
     }
 
     DateTime? parsearFechaOpcional(dynamic valor) {
       if (valor == null) return null;
-      if (valor is DateTime) return valor;
-      if (valor is String) return DateTime.parse(valor);
+      if (valor is DateTime) return valor.toLocal();
+      if (valor is String) return DateTime.parse(valor).toLocal();
       return null;
     }
 
