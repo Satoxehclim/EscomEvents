@@ -1,11 +1,10 @@
-import 'package:escomevents_app/core/utils/paleta.dart';
 import 'package:escomevents_app/features/auth/view/pages/bienvenida_page.dart';
 import 'package:escomevents_app/features/eventos/models/evento_model.dart';
 import 'package:escomevents_app/features/eventos/models/filtro_eventos_model.dart';
 import 'package:escomevents_app/features/eventos/viewmodel/evento_viewmodel.dart';
 import 'package:escomevents_app/features/eventos/views/pages/detalle_evento_page.dart';
-import 'package:escomevents_app/features/eventos/views/widgets/evento_card.dart';
 import 'package:escomevents_app/features/eventos/views/widgets/filtros_eventos.dart';
+import 'package:escomevents_app/features/eventos/views/widgets/lista_eventos_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -167,30 +166,9 @@ class _AdminEventosPageState extends ConsumerState<AdminEventosPage> {
 
   // Construye el header con título y botón de filtros.
   Widget _construirHeader(ThemeData theme, bool isDark) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              'Administrar Eventos',
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          Container(
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkPrimary : AppColors.lightPrimary,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.filter_list, color: Colors.white),
-              onPressed: _mostrarFiltros,
-            ),
-          ),
-        ],
-      ),
+    return HeaderEventos(
+      titulo: 'Administrar Eventos',
+      onFiltrosTap: _mostrarFiltros,
     );
   }
 
@@ -227,55 +205,14 @@ class _AdminEventosPageState extends ConsumerState<AdminEventosPage> {
 
   // Construye el estado de carga.
   Widget _construirEstadoCargando(bool isDark) {
-    return Center(
-      child: CircularProgressIndicator(
-        color: isDark ? AppColors.darkPrimary : AppColors.lightPrimary,
-      ),
-    );
+    return const EstadoCargando();
   }
 
   // Construye el estado de error.
   Widget _construirEstadoError(String mensaje, ThemeData theme, bool isDark) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: Colors.red.shade400,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Error al cargar eventos',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              mensaje,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: _cargarEventos,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Reintentar'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    isDark ? AppColors.darkPrimary : AppColors.lightPrimary,
-                foregroundColor: Colors.white,
-              ),
-            ),
-          ],
-        ),
-      ),
+    return EstadoError(
+      mensaje: mensaje,
+      onReintentar: _cargarEventos,
     );
   }
 
@@ -287,73 +224,23 @@ class _AdminEventosPageState extends ConsumerState<AdminEventosPage> {
     bool hayMas = false,
     bool cargandoMas = false,
   }) {
-    if (eventos.isEmpty) {
-      return _construirEstadoVacio(theme, isDark);
-    }
+    final mensajeSecundario = _filtros.estado == FiltroEstado.pendientes
+        ? '¡Todos los eventos han sido revisados!'
+        : null;
 
-    final itemCount = eventos.length + (cargandoMas || hayMas ? 1 : 0);
-
-    return RefreshIndicator(
+    return ListaEventos(
+      eventos: eventos,
+      scrollController: _scrollController,
       onRefresh: _cargarEventos,
-      color: isDark ? AppColors.darkPrimary : AppColors.lightPrimary,
-      child: ListView.builder(
-        controller: _scrollController,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: itemCount,
-        itemBuilder: (context, index) {
-          if (index == eventos.length) {
-            if (cargandoMas) {
-              return Padding(
-                padding: const EdgeInsets.all(16),
-                child: Center(
-                  child: CircularProgressIndicator(
-                    color:
-                        isDark ? AppColors.darkPrimary : AppColors.lightPrimary,
-                    strokeWidth: 2,
-                  ),
-                ),
-              );
-            }
-            return const SizedBox(height: 16);
-          }
-
-          return EventCard(
-            event: eventos[index],
-            onTap: () => _navegarADetalle(eventos[index]),
-          );
-        },
-      ),
-    );
-  }
-
-  // Construye el estado vacío.
-  Widget _construirEstadoVacio(ThemeData theme, bool isDark) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.check_circle_outline,
-            size: 64,
-            color: Colors.green.shade400,
-          ),
-          const SizedBox(height: 16),
-          Text(
+      onEventoTap: _navegarADetalle,
+      hayMas: hayMas,
+      cargandoMas: cargandoMas,
+      estadoVacio: EstadoVacio(
+        mensajePrincipal:
             'No hay eventos ${obtenerNombreFiltroEstado(_filtros.estado).toLowerCase()}',
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: Colors.grey,
-            ),
-          ),
-          if (_filtros.estado == FiltroEstado.pendientes) ...[
-            const SizedBox(height: 8),
-            Text(
-              '¡Todos los eventos han sido revisados!',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: Colors.grey.shade500,
-              ),
-            ),
-          ],
-        ],
+        mensajeSecundario: mensajeSecundario,
+        icono: Icons.check_circle_outline,
+        colorIcono: Colors.green.shade400,
       ),
     );
   }
