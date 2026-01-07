@@ -107,6 +107,9 @@ abstract class EventoRepository {
     int tamanoPagina = 10,
     FiltroEventos? filtros,
   });
+
+  // Cancela un evento (solo el organizador).
+  Future<EventModel> cancelarEvento(int idEvento);
 }
 
 // Implementación del repositorio de eventos usando Supabase.
@@ -1091,6 +1094,22 @@ class EventoRepositoryImpl implements EventoRepository {
       );
     } on PostgrestException catch (e) {
       throw Exception('Error al obtener eventos: ${e.message}');
+    }
+  }
+
+  @override
+  Future<EventModel> cancelarEvento(int idEvento) async {
+    try {
+      final response = await _supabase
+          .from('Evento')
+          .update({'cancelado': true})
+          .eq('id_evento', idEvento)
+          .select('*, Evento_Categoria(id_categoria, Categoria(*))')
+          .single();
+
+      return EventModel.fromMap(response);
+    } on PostgrestException catch (e) {
+      throw Exception('Error al cancelar evento: ${e.message}');
     }
   }
 }

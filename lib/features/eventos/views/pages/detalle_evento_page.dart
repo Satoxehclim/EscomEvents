@@ -191,6 +191,12 @@ class _DetalleEventoPageState extends ConsumerState<DetalleEventoPage> {
                   _construirEncabezado(theme),
                   const SizedBox(height: 16),
 
+                  // Banner de evento cancelado.
+                  if (_eventoActual.cancelado) ...[
+                    const BannerEventoCancelado(),
+                    const SizedBox(height: 16),
+                  ],
+
                   // Categorías.
                   if (_eventoActual.categorias.isNotEmpty)
                     ChipsCategorias(categorias: _eventoActual.categorias),
@@ -294,6 +300,12 @@ class _DetalleEventoPageState extends ConsumerState<DetalleEventoPage> {
 
   // Construye el encabezado con nombre y menú.
   Widget _construirEncabezado(ThemeData theme) {
+    // Determina si se puede cancelar el evento.
+    final puedeCancelar = _rolActual == RolUsuario.organizador &&
+        widget.origen == OrigenDetalle.misEventos &&
+        _eventoActual.validado &&
+        !_eventoActual.cancelado;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -309,6 +321,8 @@ class _DetalleEventoPageState extends ConsumerState<DetalleEventoPage> {
           MenuOpcionesEvento(
             onEditar: _abrirFormularioEdicion,
             onEliminar: _mostrarDialogoEliminar,
+            onCancelar: _mostrarDialogoCancelar,
+            mostrarCancelar: puedeCancelar,
           ),
       ],
     );
@@ -424,6 +438,50 @@ class _DetalleEventoPageState extends ConsumerState<DetalleEventoPage> {
         Navigator.of(context).pop();
       },
     );
+  }
+
+  // Muestra el diálogo de confirmación para cancelar evento.
+  void _mostrarDialogoCancelar() {
+    DialogoCancelarEvento.mostrar(
+      context: context,
+      nombreEvento: _eventoActual.nombre,
+      onConfirmar: _cancelarEvento,
+    );
+  }
+
+  // Cancela el evento.
+  Future<void> _cancelarEvento() async {
+    final notifier = ref.read(cancelarEventoProvider.notifier);
+    final evento = await notifier.cancelarEvento(_eventoActual.id);
+
+    if (!mounted) return;
+
+    if (evento != null) {
+      setState(() {
+        _eventoActual = evento;
+      });
+      widget.onEventoActualizado?.call(evento);
+
+      // Recarga la lista de eventos del organizador.
+      ref.read(eventosOrganizadorProvider.notifier).recargarEventos();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Evento cancelado correctamente'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    } else {
+      final state = ref.read(cancelarEventoProvider);
+      if (state is CancelarEventoError) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al cancelar: ${state.mensaje}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   // Muestra el diálogo para rechazar el evento.

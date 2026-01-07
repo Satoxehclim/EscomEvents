@@ -22,6 +22,7 @@ class EventModel {
   final String? flyer; // URL o path del flyer
   final String? resumenComentarios;
   final String? comentarioAdmin; // Comentario del admin al rechazar
+  final bool cancelado;
   final List<CategoriaModel> categorias;
   final List<AsistenciaModel>? asistencias;
   final List<CalificacionModel>? calificaciones;
@@ -41,6 +42,7 @@ class EventModel {
     this.flyer,
     this.resumenComentarios,
     this.comentarioAdmin,
+    this.cancelado = false,
     required this.categorias,
     this.asistencias,
     this.calificaciones,
@@ -63,6 +65,7 @@ class EventModel {
     String? resumenComentarios,
     String? comentarioAdmin,
     bool limpiarComentarioAdmin = false,
+    bool? cancelado,
     List<CategoriaModel>? categorias,
     List<AsistenciaModel>? asistencias,
     List<CalificacionModel>? calificaciones,
@@ -82,6 +85,7 @@ class EventModel {
       flyer: flyer ?? this.flyer,
       resumenComentarios: resumenComentarios ?? this.resumenComentarios,
       comentarioAdmin: limpiarComentarioAdmin ? null : (comentarioAdmin ?? this.comentarioAdmin),
+      cancelado: cancelado ?? this.cancelado,
       categorias: categorias ?? this.categorias,
       asistencias: asistencias ?? this.asistencias,
       calificaciones: calificaciones ?? this.calificaciones,
@@ -119,6 +123,7 @@ class EventModel {
       'flyer': flyer,
       'resumen_comentarios': resumenComentarios,
       'comentario_admin': comentarioAdmin,
+      'cancelado': cancelado,
       'categorias': categorias.map((x) => x.toMap()).toList(),
       'asistencias': asistencias?.map((x) => x.toMap()).toList(),
       'calificaciones': calificaciones?.map((x) => x.toMap()).toList(),
@@ -156,6 +161,7 @@ class EventModel {
       flyer: map['flyer'] as String?,
       resumenComentarios: map['resumen_comentarios'] as String?,
       comentarioAdmin: map['comentario_admin'] as String?,
+      cancelado: map['cancelado'] as bool? ?? false,
       categorias: map['categorias'] != null
           ? (map['categorias'] as List)
               .map((x) => CategoriaModel.fromMap(x as Map<String, dynamic>))
@@ -180,7 +186,7 @@ class EventModel {
 
   @override
   String toString() {
-    return 'EventModel(id: $id, idOrganizador: $idOrganizador, nombre: $nombre, fecha: $fecha, fechaPublicado: $fechaPublicado, fechaCreacion: $fechaCreacion, entradaLibre: $entradaLibre, descripcion: $descripcion, validado: $validado, imageUrl: $imageUrl, lugar: $lugar, flyer: $flyer, resumenComentarios: $resumenComentarios, categorias: $categorias, asistencias: $asistencias, calificaciones: $calificaciones)';
+    return 'EventModel(id: $id, idOrganizador: $idOrganizador, nombre: $nombre, fecha: $fecha, fechaPublicado: $fechaPublicado, fechaCreacion: $fechaCreacion, entradaLibre: $entradaLibre, descripcion: $descripcion, validado: $validado, imageUrl: $imageUrl, lugar: $lugar, flyer: $flyer, resumenComentarios: $resumenComentarios, cancelado: $cancelado, categorias: $categorias, asistencias: $asistencias, calificaciones: $calificaciones)';
   }
 
   @override
@@ -201,6 +207,7 @@ class EventModel {
       other.lugar == lugar &&
       other.flyer == flyer &&
       other.resumenComentarios == resumenComentarios &&
+      other.cancelado == cancelado &&
       listEquals(other.categorias, categorias) &&
       listEquals(other.asistencias, asistencias) &&
       listEquals(other.calificaciones, calificaciones);
@@ -221,6 +228,7 @@ class EventModel {
       lugar.hashCode ^
       flyer.hashCode ^
       resumenComentarios.hashCode ^
+      cancelado.hashCode ^
       categorias.hashCode ^
       asistencias.hashCode ^
       calificaciones.hashCode;

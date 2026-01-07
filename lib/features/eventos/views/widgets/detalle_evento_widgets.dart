@@ -476,6 +476,27 @@ class InfoAdministrativa extends StatelessWidget {
     super.key,
   });
 
+  // Obtiene el texto del estado del evento.
+  String _obtenerTextoEstado() {
+    if (evento.cancelado) return 'Cancelado';
+    if (evento.validado) return 'Aprobado';
+    return 'Pendiente';
+  }
+
+  // Obtiene el color del estado del evento.
+  Color _obtenerColorEstado() {
+    if (evento.cancelado) return Colors.red;
+    if (evento.validado) return Colors.green;
+    return Colors.orange;
+  }
+
+  // Obtiene el icono del estado del evento.
+  IconData _obtenerIconoEstado() {
+    if (evento.cancelado) return Icons.cancel;
+    if (evento.validado) return Icons.check_circle;
+    return Icons.pending;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -512,9 +533,9 @@ class InfoAdministrativa extends StatelessWidget {
           if (mostrarValidado)
             _FilaAdmin(
               titulo: 'Estado',
-              valor: evento.validado ? 'Aprobado' : 'Pendiente',
-              valorColor: evento.validado ? Colors.green : Colors.orange,
-              icono: evento.validado ? Icons.check_circle : Icons.pending,
+              valor: _obtenerTextoEstado(),
+              valorColor: _obtenerColorEstado(),
+              icono: _obtenerIconoEstado(),
             ),
           if (mostrarCreatedAt) ...[
             const SizedBox(height: 12),
@@ -632,6 +653,63 @@ class ComentarioAdmin extends StatelessWidget {
   }
 }
 
+// Banner de evento cancelado.
+class BannerEventoCancelado extends StatelessWidget {
+  const BannerEventoCancelado({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red.shade300, width: 1.5),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.red.shade100,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.cancel,
+              color: Colors.red.shade700,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Evento cancelado',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red.shade700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Este evento ha sido cancelado por el organizador.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.red.shade600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // Acciones de administrador (aprobar/rechazar).
 class AccionesAdmin extends StatelessWidget {
   final VoidCallback onAprobar;
@@ -708,14 +786,18 @@ class AccionesAdmin extends StatelessWidget {
   }
 }
 
-// Menú de opciones (editar/eliminar).
+// Menú de opciones (editar/eliminar/cancelar).
 class MenuOpcionesEvento extends StatelessWidget {
   final VoidCallback onEditar;
   final VoidCallback onEliminar;
+  final VoidCallback? onCancelar;
+  final bool mostrarCancelar;
 
   const MenuOpcionesEvento({
     required this.onEditar,
     required this.onEliminar,
+    this.onCancelar,
+    this.mostrarCancelar = false,
     super.key,
   });
 
@@ -734,6 +816,9 @@ class MenuOpcionesEvento extends StatelessWidget {
         switch (opcion) {
           case 'editar':
             onEditar();
+            break;
+          case 'cancelar':
+            onCancelar?.call();
             break;
           case 'eliminar':
             onEliminar();
@@ -755,6 +840,24 @@ class MenuOpcionesEvento extends StatelessWidget {
             ],
           ),
         ),
+        if (mostrarCancelar)
+          PopupMenuItem(
+            value: 'cancelar',
+            child: Row(
+              children: [
+                Icon(
+                  Icons.cancel_outlined,
+                  size: 20,
+                  color: Colors.orange.shade600,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Cancelar evento',
+                  style: TextStyle(color: Colors.orange.shade600),
+                ),
+              ],
+            ),
+          ),
         PopupMenuItem(
           value: 'eliminar',
           child: Row(
@@ -816,6 +919,54 @@ class DialogoEliminarEvento {
               onConfirmar();
             },
             texto: 'Eliminar',
+            tipo: CustomButtonType.danger,
+            anchoCompleto: false,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Diálogo de confirmación para cancelar evento.
+class DialogoCancelarEvento {
+  static void mostrar({
+    required BuildContext context,
+    required String nombreEvento,
+    required VoidCallback onConfirmar,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor:
+            isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.cancel_outlined, color: Colors.orange.shade600, size: 28),
+            const SizedBox(width: 12),
+            const Text('Cancelar evento'),
+          ],
+        ),
+        content: Text(
+          '¿Estás seguro de que deseas cancelar "$nombreEvento"?\n\n'
+          'Los asistentes registrados serán notificados. Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          CustomButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            texto: 'No, mantener',
+            tipo: CustomButtonType.outlined,
+            anchoCompleto: false,
+          ),
+          CustomButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              onConfirmar();
+            },
+            texto: 'Sí, cancelar',
             tipo: CustomButtonType.danger,
             anchoCompleto: false,
           ),
