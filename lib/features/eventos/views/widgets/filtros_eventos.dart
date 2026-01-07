@@ -157,13 +157,18 @@ class _ModalFiltrosEventosState extends ConsumerState<ModalFiltrosEventos> {
       ),
     ];
 
-    // Pendientes y Aprobados solo si se muestran filtros avanzados.
+    // Pendientes, En Corrección y Aprobados solo si se muestran filtros avanzados.
     if (widget.mostrarFiltrosAvanzados) {
       itemsBase.addAll(const [
         DropdownItem(
           valor: FiltroEstado.pendientes,
           etiqueta: 'Pendientes',
           icono: Icons.pending_actions,
+        ),
+        DropdownItem(
+          valor: FiltroEstado.enCorreccion,
+          etiqueta: 'En Corrección',
+          icono: Icons.edit_note,
         ),
         DropdownItem(
           valor: FiltroEstado.aprobados,
@@ -327,12 +332,7 @@ class ChipsFiltroEstado extends StatelessWidget {
   });
 
   List<DropdownItem<FiltroEstado>> _obtenerItems() {
-    final itemsBase = <DropdownItem<FiltroEstado>>[
-      const DropdownItem(
-        valor: FiltroEstado.todos,
-        etiqueta: 'Todos',
-        icono: Icons.all_inclusive,
-      ),
+    final itemsBase = <DropdownItem<FiltroEstado>>[ 
       const DropdownItem(
         valor: FiltroEstado.proximos,
         etiqueta: 'Próximos',
@@ -346,11 +346,16 @@ class ChipsFiltroEstado extends StatelessWidget {
     ];
 
     if (mostrarFiltrosAvanzados) {
-      itemsBase.addAll(const [
+      itemsBase.insertAll(0,const [
         DropdownItem(
           valor: FiltroEstado.pendientes,
           etiqueta: 'Pendientes',
           icono: Icons.pending_actions,
+        ),
+        DropdownItem(
+          valor: FiltroEstado.enCorreccion,
+          etiqueta: 'En Corrección',
+          icono: Icons.edit_note,
         ),
         DropdownItem(
           valor: FiltroEstado.aprobados,
@@ -358,6 +363,11 @@ class ChipsFiltroEstado extends StatelessWidget {
           icono: Icons.check_circle_outline,
         ),
       ]);
+      itemsBase.add( const DropdownItem(
+        valor: FiltroEstado.todos,
+        etiqueta: 'Todos',
+        icono: Icons.all_inclusive,
+      ));
     }
 
     return itemsBase;

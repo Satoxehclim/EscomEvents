@@ -1,6 +1,8 @@
 import 'package:escomevents_app/core/utils/paleta.dart';
 import 'package:escomevents_app/core/utils/router.dart';
+import 'package:escomevents_app/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 // Roles de usuario disponibles en la aplicación.
@@ -8,25 +10,25 @@ enum RolUsuario { estudiante, organizador, administrador }
 
 // Página principal de bienvenida con navegación inferior.
 //
-// La navegación y contenido puede variar según el [rol] del usuario.
-class BienvenidaPage extends StatefulWidget {
-  // Rol del usuario actual. Por defecto es [RolUsuario.estudiante].
-  final RolUsuario rol;
-
+// La navegación y contenido puede variar según el rol del usuario autenticado.
+class BienvenidaPage extends ConsumerStatefulWidget {
   // Widget hijo que se muestra en el cuerpo del Scaffold.
   final Widget child;
 
   const BienvenidaPage({
     super.key,
-    this.rol = RolUsuario.estudiante,
     required this.child,
   });
 
   @override
-  State<BienvenidaPage> createState() => _BienvenidaPageState();
+  ConsumerState<BienvenidaPage> createState() => _BienvenidaPageState();
 }
 
-class _BienvenidaPageState extends State<BienvenidaPage> {
+class _BienvenidaPageState extends ConsumerState<BienvenidaPage> {
+  // Obtiene el rol actual del usuario.
+  RolUsuario get _rolActual =>
+      ref.watch(perfilActualProvider)?.rol ?? RolUsuario.estudiante;
+
   // Obtiene las rutas disponibles según el rol del usuario.
   List<String> _obtenerRutas() {
     final rutasBase = <String>[
@@ -35,15 +37,15 @@ class _BienvenidaPageState extends State<BienvenidaPage> {
     ];
 
     // Agrega rutas adicionales según el rol.
-    switch (widget.rol) {
+    switch (_rolActual) {
       case RolUsuario.organizador:
         rutasBase.add(RutasApp.misEventos);
         break;
       case RolUsuario.administrador:
-        // TODO: Agregar rutas específicas para administradores.
+        rutasBase.add(RutasApp.adminEventos);
         break;
       case RolUsuario.estudiante:
-        // Los estudiantes solo tienen las rutas base.
+        rutasBase.add(RutasApp.misEventosEstudiante);
         break;
     }
 
@@ -82,7 +84,7 @@ class _BienvenidaPageState extends State<BienvenidaPage> {
     ];
 
     // Agrega items adicionales según el rol.
-    switch (widget.rol) {
+    switch (_rolActual) {
       case RolUsuario.organizador:
         itemsBase.add(
           const BottomNavigationBarItem(
@@ -93,10 +95,22 @@ class _BienvenidaPageState extends State<BienvenidaPage> {
         );
         break;
       case RolUsuario.administrador:
-        // TODO: Agregar items específicos para administradores.
+        itemsBase.add(
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.admin_panel_settings_outlined),
+            activeIcon: Icon(Icons.admin_panel_settings),
+            label: 'Administrar',
+          ),
+        );
         break;
       case RolUsuario.estudiante:
-        // Los estudiantes solo tienen los items base.
+        itemsBase.add(
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.bookmark_outline),
+            activeIcon: Icon(Icons.bookmark),
+            label: 'Mis Eventos',
+          ),
+        );
         break;
     }
 

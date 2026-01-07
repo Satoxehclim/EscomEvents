@@ -1,19 +1,25 @@
-import 'package:escomevents_app/core/utils/paleta.dart';
-import 'package:escomevents_app/core/view/widgets/custom_button.dart';
+import 'package:escomevents_app/features/auth/models/perfil_model.dart';
 import 'package:escomevents_app/features/auth/view/pages/bienvenida_page.dart';
+import 'package:escomevents_app/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:escomevents_app/features/eventos/models/evento_model.dart';
+import 'package:escomevents_app/features/eventos/viewmodel/asistencia_viewmodel.dart';
+import 'package:escomevents_app/features/eventos/viewmodel/evento_viewmodel.dart';
+import 'package:escomevents_app/features/eventos/views/widgets/detalle_evento_widgets.dart';
+import 'package:escomevents_app/features/eventos/views/widgets/escaner_asistencia.dart';
 import 'package:escomevents_app/features/eventos/views/widgets/formulario_editar_evento.dart';
+import 'package:escomevents_app/core/utils/paleta.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // Origen desde donde se navega al detalle del evento.
 enum OrigenDetalle {
   misEventos,
   eventos,
+  misEventosEstudiante,
 }
 
 // Página que muestra los detalles completos de un evento.
-class DetalleEventoPage extends StatefulWidget {
+class DetalleEventoPage extends ConsumerStatefulWidget {
   final EventModel evento;
   final RolUsuario rol;
   final OrigenDetalle origen;
@@ -34,10 +40,10 @@ class DetalleEventoPage extends StatefulWidget {
   });
 
   @override
-  State<DetalleEventoPage> createState() => _DetalleEventoPageState();
+  ConsumerState<DetalleEventoPage> createState() => _DetalleEventoPageState();
 }
 
-class _DetalleEventoPageState extends State<DetalleEventoPage> {
+class _DetalleEventoPageState extends ConsumerState<DetalleEventoPage> {
   // Evento actual (puede actualizarse después de editar).
   late EventModel _eventoActual;
 
@@ -45,18 +51,109 @@ class _DetalleEventoPageState extends State<DetalleEventoPage> {
   void initState() {
     super.initState();
     _eventoActual = widget.evento;
+    // Verifica asistencia si es estudiante.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final perfil = ref.read(perfilActualProvider);
+      if (perfil?.rol == RolUsuario.estudiante) {
+        _verificarAsistencia();
+      }
+    });
   }
+
+  // Verifica si el estudiante está registrado al evento.
+  void _verificarAsistencia() {
+    final perfil = ref.read(perfilActualProvider);
+    if (perfil != null) {
+      ref.read(asistenciaProvider.notifier).verificarAsistencia(
+            idPerfil: perfil.idPerfil,
+            idEvento: _eventoActual.id,
+          );
+    }
+  }
+
+  // Determina si el botón de asistencia debe mostrarse.
+  bool get _mostrarBotonAsistencia {
+    final perfil = ref.read(perfilActualProvider);
+    return perfil?.rol == RolUsuario.estudiante;
+  }
+
+  // Obtiene el rol actual del usuario.
+  RolUsuario? get _rolActual => ref.read(perfilActualProvider)?.rol;
 
   // Determina si el usuario puede editar el evento.
   bool get _puedeEditar {
     // Solo el organizador puede editar sus propios eventos.
     // o el admin puede editar cualquiera.
-    if (widget.rol == RolUsuario.administrador) return true;
-    if (widget.rol == RolUsuario.organizador &&
+    if (_rolActual == RolUsuario.administrador) return true;
+    if (_rolActual == RolUsuario.organizador &&
         widget.origen == OrigenDetalle.misEventos) {
       return true;
     }
     return false;
+  }
+
+  // Determina si se muestra el estado de validación.
+  bool get _mostrarValidado {
+    if (_rolActual == RolUsuario.administrador) return true;
+    if (_rolActual == RolUsuario.organizador &&
+        widget.origen == OrigenDetalle.misEventos) {
+      return true;
+    }
+    return false;
+  }
+
+  // Determina si se muestra created_at.
+  bool get _mostrarCreatedAt {
+    if (_rolActual == RolUsuario.administrador) return true;
+    if (_rolActual == RolUsuario.organizador &&
+        widget.origen == OrigenDetalle.misEventos) {
+      return true;
+    }
+    return false;
+  }
+
+  // Determina si se muestra la información administrativa.
+  bool get _mostrarInfoAdministrativa => _mostrarValidado || _mostrarCreatedAt;
+
+  // Determina si se muestra el comentario del administrador.
+  bool get _mostrarComentarioAdmin {
+    if (_rolActual != RolUsuario.administrador &&
+        _rolActual != RolUsuario.organizador) {
+      return false;
+    }
+    final comentario = _eventoActual.comentarioAdmin;
+    return comentario != null && comentario.isNotEmpty;
+  }
+
+  // Determina si se muestran las acciones de administrador.
+  bool get _mostrarAccionesAdmin {
+    if (_rolActual != RolUsuario.administrador) return false;
+    // Solo mostrar acciones si el evento está pendiente de validación.
+    return _eventoActual.validado == false;
+  }
+
+  // Determina si se muestra el FAB de escanear asistencia.
+  bool get _mostrarFabEscanear {
+    // Solo para organizadores viendo sus propios eventos validados.
+    if (_rolActual != RolUsuario.organizador) return false;
+    if (widget.origen != OrigenDetalle.misEventos) return false;
+    if (!_eventoActual.validado) return false;
+    if (_eventoActual.entradaLibre) return false;
+    // Solo si el evento no requiere entrada libre (requiere control de asistencia).
+    // O siempre mostrar para eventos validados.
+    return true;
+  }
+
+  // Abre el escáner de asistencia.
+  void _abrirEscanerAsistencia() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => EscanerAsistenciaPage(
+          idEvento: _eventoActual.id,
+          nombreEvento: _eventoActual.nombre,
+        ),
+      ),
+    );
   }
 
   @override
@@ -65,10 +162,23 @@ class _DetalleEventoPageState extends State<DetalleEventoPage> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
+      floatingActionButton: _mostrarFabEscanear
+          ? FloatingActionButton.extended(
+              onPressed: _abrirEscanerAsistencia,
+              icon: const Icon(Icons.qr_code_scanner),
+              label: const Text('Pasar Asistencia'),
+              backgroundColor:
+                  isDark ? AppColors.darkPrimary : AppColors.lightPrimary,
+              foregroundColor: Colors.white,
+            )
+          : null,
       body: CustomScrollView(
         slivers: [
           // AppBar con imagen.
-          _construirAppBar(context, isDark),
+          DetalleEventoAppBar(
+            evento: _eventoActual,
+            onBack: () => Navigator.of(context).pop(),
+          ),
 
           // Contenido.
           SliverToBoxAdapter(
@@ -78,43 +188,30 @@ class _DetalleEventoPageState extends State<DetalleEventoPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Nombre del evento y menú de opciones.
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _eventoActual.nombre,
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      if (_puedeEditar)
-                        _construirMenuOpciones(context, theme, isDark),
-                    ],
-                  ),
+                  _construirEncabezado(theme),
                   const SizedBox(height: 16),
 
                   // Categorías.
                   if (_eventoActual.categorias.isNotEmpty)
-                    _construirCategorias(isDark),
+                    ChipsCategorias(categorias: _eventoActual.categorias),
 
                   // Información del organizador.
                   if (widget.nombreOrganizador != null) ...[
                     const SizedBox(height: 20),
-                    _construirInfoOrganizador(theme, isDark),
+                    InfoOrganizador(
+                      nombreOrganizador: widget.nombreOrganizador!,
+                    ),
                   ],
 
                   // Detalles principales.
                   const SizedBox(height: 20),
-                  _construirDetallesPrincipales(theme, isDark),
+                  DetallesPrincipales(evento: _eventoActual),
 
                   // Descripción.
                   if (_eventoActual.descripcion != null &&
                       _eventoActual.descripcion!.isNotEmpty) ...[
                     const SizedBox(height: 24),
-                    _construirSeccion(
-                      theme: theme,
+                    SeccionConTitulo(
                       titulo: 'Descripción',
                       child: Text(
                         _eventoActual.descripcion!,
@@ -126,12 +223,10 @@ class _DetalleEventoPageState extends State<DetalleEventoPage> {
                   ],
 
                   // Resumen de comentarios.
-                  if (_mostrarResumenComentarios &&
-                      _eventoActual.resumenComentarios != null &&
+                  if (_eventoActual.resumenComentarios != null &&
                       _eventoActual.resumenComentarios!.isNotEmpty) ...[
                     const SizedBox(height: 24),
-                    _construirSeccion(
-                      theme: theme,
+                    SeccionConTitulo(
                       titulo: 'Resumen de comentarios',
                       child: Text(
                         _eventoActual.resumenComentarios!,
@@ -147,36 +242,44 @@ class _DetalleEventoPageState extends State<DetalleEventoPage> {
                   if (_eventoActual.flyer != null &&
                       _eventoActual.flyer!.isNotEmpty) ...[
                     const SizedBox(height: 24),
-                    _construirSeccion(
-                      theme: theme,
+                    SeccionConTitulo(
                       titulo: 'Flyer del evento',
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          _eventoActual.flyer!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              Container(
-                            height: 200,
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? Colors.grey.shade800
-                                  : Colors.grey.shade300,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Center(
-                              child: Icon(Icons.broken_image, size: 48),
-                            ),
-                          ),
-                        ),
-                      ),
+                      child: FlyerEvento(flyerUrl: _eventoActual.flyer!),
                     ),
                   ],
 
-                  // Información administrativa (solo para roles permitidos).
+                  // Información administrativa.
                   if (_mostrarInfoAdministrativa) ...[
                     const SizedBox(height: 24),
-                    _construirInfoAdministrativa(theme, isDark),
+                    InfoAdministrativa(
+                      evento: _eventoActual,
+                      mostrarValidado: _mostrarValidado,
+                      mostrarCreatedAt: _mostrarCreatedAt,
+                      mostrarIdEvento: _rolActual == RolUsuario.administrador,
+                    ),
+                  ],
+
+                  // Comentario del admin.
+                  if (_mostrarComentarioAdmin) ...[
+                    const SizedBox(height: 24),
+                    ComentarioAdmin(
+                      comentario: _eventoActual.comentarioAdmin!,
+                    ),
+                  ],
+
+                  // Acciones de administrador.
+                  if (_mostrarAccionesAdmin) ...[
+                    const SizedBox(height: 24),
+                    AccionesAdmin(
+                      onAprobar: _aprobarEvento,
+                      onRechazar: _mostrarDialogoRechazo,
+                    ),
+                  ],
+
+                  // Botón de asistencia para estudiantes.
+                  if (_mostrarBotonAsistencia) ...[
+                    const SizedBox(height: 24),
+                    _construirBotonAsistencia(),
                   ],
 
                   const SizedBox(height: 40),
@@ -189,79 +292,121 @@ class _DetalleEventoPageState extends State<DetalleEventoPage> {
     );
   }
 
-  // Construye el menú de opciones (Editar, Eliminar).
-  Widget _construirMenuOpciones(
-    BuildContext context,
-    ThemeData theme,
-    bool isDark,
-  ) {
-    return PopupMenuButton<String>(
-      icon: Icon(
-        Icons.more_vert,
-        color: isDark ? AppColors.darkPrimary : AppColors.lightPrimary,
-      ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-      onSelected: (opcion) {
-        switch (opcion) {
-          case 'editar':
-            _abrirFormularioEdicion(context);
-            break;
-          case 'eliminar':
-            _mostrarDialogoEliminar(context, isDark);
-            break;
-        }
-      },
-      itemBuilder: (context) => [
-        PopupMenuItem(
-          value: 'editar',
-          child: Row(
-            children: [
-              Icon(
-                Icons.edit,
-                size: 20,
-                color: isDark ? AppColors.darkPrimary : AppColors.lightPrimary,
-              ),
-              const SizedBox(width: 12),
-              const Text('Editar'),
-            ],
+  // Construye el encabezado con nombre y menú.
+  Widget _construirEncabezado(ThemeData theme) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Text(
+            _eventoActual.nombre,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
-        PopupMenuItem(
-          value: 'eliminar',
-          child: Row(
-            children: [
-              Icon(
-                Icons.delete,
-                size: 20,
-                color: Colors.red.shade400,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Eliminar',
-                style: TextStyle(color: Colors.red.shade400),
-              ),
-            ],
+        if (_puedeEditar)
+          MenuOpcionesEvento(
+            onEditar: _abrirFormularioEdicion,
+            onEliminar: _mostrarDialogoEliminar,
           ),
-        ),
       ],
     );
   }
 
+  // Construye el botón de asistencia para estudiantes.
+  Widget _construirBotonAsistencia() {
+    final asistenciaState = ref.watch(asistenciaProvider);
+    final perfil = ref.watch(perfilActualProvider);
+
+    // Determina el estado del botón.
+    final estaCargando = asistenciaState is AsistenciaEventoCargando;
+    final estaRegistrado = asistenciaState is AsistenciaEventoRegistrado;
+
+    return BotonAsistencia(
+      estaRegistrado: estaRegistrado,
+      estaCargando: estaCargando,
+      onRegistrar: () => _registrarAsistencia(perfil),
+      onCancelar: () => _cancelarAsistencia(asistenciaState),
+    );
+  }
+
+  // Registra la asistencia del estudiante.
+  Future<void> _registrarAsistencia(PerfilModel? perfil) async {
+    if (perfil == null) return;
+
+    final exito = await ref.read(asistenciaProvider.notifier).registrarAsistencia(
+          idPerfil: perfil.idPerfil,
+          idEvento: _eventoActual.id,
+          entradaLibre: _eventoActual.entradaLibre,
+        );
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            exito
+                ? '¡Te has registrado al evento!'
+                : 'Error al registrar asistencia',
+          ),
+          backgroundColor: exito ? Colors.green : Colors.red,
+        ),
+      );
+    }
+  }
+
+  // Cancela la asistencia del estudiante.
+  void _cancelarAsistencia(AsistenciaEventoState estado) {
+    if (estado is! AsistenciaEventoRegistrado) return;
+
+    DialogoCancelarAsistencia.mostrar(
+      context: context,
+      nombreEvento: _eventoActual.nombre,
+      onConfirmar: () async {
+        final exito = await ref
+            .read(asistenciaProvider.notifier)
+            .cancelarAsistencia(estado.asistencia.id);
+
+        if (exito && widget.origen == OrigenDetalle.misEventosEstudiante) {
+          // Elimina el evento de la lista de eventos del estudiante.
+          ref
+              .read(eventosEstudianteProvider.notifier)
+              .eliminarEvento(_eventoActual.id);
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                exito
+                    ? 'Has cancelado tu asistencia'
+                    : 'Error al cancelar asistencia',
+              ),
+              backgroundColor: exito ? Colors.orange : Colors.red,
+            ),
+          );
+
+          // Si viene de mis eventos estudiante, vuelve atrás.
+          if (exito && widget.origen == OrigenDetalle.misEventosEstudiante) {
+            Navigator.of(context).pop();
+          }
+        }
+      },
+    );
+  }
+
   // Abre el formulario de edición del evento.
-  void _abrirFormularioEdicion(BuildContext context) {
+  void _abrirFormularioEdicion() {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => FormularioEditarEvento(
           evento: _eventoActual,
           onGuardar: (eventoActualizado) {
-            // Actualiza el estado local para reflejar los cambios.
             setState(() {
               _eventoActual = eventoActualizado;
             });
-            // Notifica al padre para que actualice la lista.
             widget.onEventoActualizado?.call(eventoActualizado);
-            Navigator.of(context).pop(); // Cierra el formulario.
+            Navigator.of(context).pop();
           },
           onCancelar: () => Navigator.of(context).pop(),
         ),
@@ -270,577 +415,79 @@ class _DetalleEventoPageState extends State<DetalleEventoPage> {
   }
 
   // Muestra el diálogo de confirmación para eliminar.
-  void _mostrarDialogoEliminar(BuildContext context, bool isDark) {
-    showDialog(
+  void _mostrarDialogoEliminar() {
+    DialogoEliminarEvento.mostrar(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor:
-            isDark ? AppColors.darkSurface : AppColors.lightSurface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
-            SizedBox(width: 12),
-            Text('Eliminar evento'),
-          ],
-        ),
-        content: Text(
-          '¿Estás seguro de que deseas eliminar "${_eventoActual.nombre}"?\n\n'
-          'Esta acción no se puede deshacer.',
-        ),
-        actions: [
-          CustomButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            texto: 'Cancelar',
-            tipo: CustomButtonType.outlined,
-            anchoCompleto: false,
-          ),
-          CustomButton(
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              widget.onEventoEliminado?.call();
-              Navigator.of(context).pop(); // Cierra la página de detalle.
-            },
-            texto: 'Eliminar',
-            tipo: CustomButtonType.danger,
-            anchoCompleto: false,
-          ),
-        ],
-      ),
+      nombreEvento: _eventoActual.nombre,
+      onConfirmar: () {
+        widget.onEventoEliminado?.call();
+        Navigator.of(context).pop();
+      },
     );
   }
 
-  // Construye el AppBar con la imagen del evento.
-  Widget _construirAppBar(BuildContext context, bool isDark) {
-    return SliverAppBar(
-      expandedHeight: 250,
-      pinned: true,
-      backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-      leading: Container(
-        margin: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: (isDark ? AppColors.darkBackground : AppColors.lightBackground)
-              .withOpacity(0.8),
-          shape: BoxShape.circle,
-        ),
-        child: IconButton(
-          color: isDark ? AppColors.darkPrimary: AppColors.lightPrimary,
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-      flexibleSpace: FlexibleSpaceBar(
-        background: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Imagen de fondo.
-            if (_eventoActual.imageUrl != null &&
-                _eventoActual.imageUrl!.isNotEmpty)
-              Image.network(
-                _eventoActual.imageUrl!,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
-                  child: Icon(
-                    _eventoActual.categorias.isNotEmpty
-                        ? _eventoActual.categorias.first.icono ?? Icons.event
-                        : Icons.event,
-                    size: 80,
-                    color: isDark
-                        ? AppColors.darkPrimary
-                        : AppColors.lightPrimary,
-                  ),
-                ),
-              )
-            else
-              Container(
-                color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
-                child: Center(
-                  child: Icon(
-                    _eventoActual.categorias.isNotEmpty
-                        ? _eventoActual.categorias.first.icono ?? Icons.event
-                        : Icons.event,
-                    size: 80,
-                    color: isDark
-                        ? AppColors.darkPrimary
-                        : AppColors.lightPrimary,
-                  ),
-                ),
-              ),
-
-            // Gradiente oscuro en la parte inferior.
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: 100,
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                    colors: [
-                      Colors.black.withOpacity(0.6),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            // Badge de fecha.
-            Positioned(
-              top: 60,
-              right: 16,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: (isDark
-                          ? AppColors.darkBackground
-                          : AppColors.lightBackground)
-                      .withOpacity(0.9),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      '${_eventoActual.fecha.day}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 24,
-                        color: isDark
-                            ? AppColors.darkPrimary
-                            : AppColors.lightPrimary,
-                      ),
-                    ),
-                    Text(
-                      _obtenerNombreMes(_eventoActual.fecha.month),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      '${_eventoActual.fecha.year}',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+  // Muestra el diálogo para rechazar el evento.
+  void _mostrarDialogoRechazo() {
+    DialogoRechazarEvento.mostrar(
+      context: context,
+      onRechazar: _rechazarEvento,
     );
   }
 
-  // Construye los chips de categorías.
-  Widget _construirCategorias(bool isDark) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: _eventoActual.categorias.map((categoria) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: isDark
-                ? AppColors.darkPrimary.withOpacity(0.2)
-                : AppColors.lightPrimary.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: isDark ? AppColors.darkPrimary : AppColors.lightPrimary,
-              width: 1,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (categoria.icono != null)
-                Icon(
-                  categoria.icono,
-                  size: 16,
-                  color:
-                      isDark ? AppColors.darkPrimary : AppColors.lightPrimary,
-                ),
-              if (categoria.icono != null) const SizedBox(width: 4),
-              Text(
-                categoria.nombre,
-                style: TextStyle(
-                  color:
-                      isDark ? AppColors.darkPrimary : AppColors.lightPrimary,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-        );
-      }).toList(),
-    );
-  }
+  // Aprueba el evento.
+  Future<void> _aprobarEvento() async {
+    final notifier = ref.read(validarEventoProvider.notifier);
+    final evento = await notifier.aprobarEvento(_eventoActual.id);
 
-  // Construye la información del organizador.
-  Widget _construirInfoOrganizador(ThemeData theme, bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark
-            ? AppColors.darkPrimary.withOpacity(0.1)
-            : AppColors.lightPrimary.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isDark
-              ? AppColors.darkPrimary.withOpacity(0.3)
-              : AppColors.lightPrimary.withOpacity(0.2),
+    if (!mounted) return;
+
+    if (evento != null) {
+      ref.read(eventosAdminProvider.notifier).recargar();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Evento aprobado correctamente'),
+          backgroundColor: Colors.green,
         ),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            backgroundColor:
-                isDark ? AppColors.darkPrimary : AppColors.lightPrimary,
-            child: const Icon(Icons.person, color: Colors.white),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Organizado por',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.grey,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  widget.nombreOrganizador!,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Construye los detalles principales del evento.
-  Widget _construirDetallesPrincipales(ThemeData theme, bool isDark) {
-    final formatoHora = DateFormat('HH:mm');
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          // Fecha y hora.
-          _construirFilaDetalle(
-            icono: Icons.calendar_today,
-            titulo: 'Fecha y hora',
-            valor:
-                '${_formatearFecha(_eventoActual.fecha)} a las ${formatoHora.format(_eventoActual.fecha)} hrs',
-            isDark: isDark,
-          ),
-
-          const Divider(height: 24),
-
-          // Lugar.
-          _construirFilaDetalle(
-            icono: Icons.location_on,
-            titulo: 'Lugar',
-            valor: _eventoActual.lugar,
-            isDark: isDark,
-          ),
-
-          const Divider(height: 24),
-
-          // Entrada.
-          _construirFilaDetalle(
-            icono: _eventoActual.entradaLibre ? Icons.check_circle : Icons.lock,
-            titulo: 'Entrada',
-            valor: _eventoActual.entradaLibre
-                ? 'Libre'
-                : 'Se requiere pasar asistencia',
-            isDark: isDark,
-          ),
-
-          // Fecha de publicación.
-          if (_mostrarFechaPublicado &&
-              _eventoActual.fechaPublicado != null) ...[
-            const Divider(height: 24),
-            _construirFilaDetalle(
-              icono: Icons.publish,
-              titulo: 'Publicado',
-              valor: _formatearFecha(_eventoActual.fechaPublicado!),
-              isDark: isDark,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  // Construye una fila de detalle.
-  Widget _construirFilaDetalle({
-    required IconData icono,
-    required String titulo,
-    required String valor,
-    required bool isDark,
-    Color? valorColor,
-  }) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: isDark
-                ? AppColors.darkPrimary.withOpacity(0.2)
-                : AppColors.lightPrimary.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(
-            icono,
-            size: 20,
-            color: isDark ? AppColors.darkPrimary : AppColors.lightPrimary,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                titulo,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                valor,
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: valorColor,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // Construye una sección con título.
-  Widget _construirSeccion({
-    required ThemeData theme,
-    required String titulo,
-    required Widget child,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          titulo,
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 12),
-        child,
-      ],
-    );
-  }
-
-  // Construye la información administrativa.
-  Widget _construirInfoAdministrativa(ThemeData theme, bool isDark) {
-    final formatoFecha = DateFormat('dd/MM/yyyy HH:mm');
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark
-            ? Colors.orange.withOpacity(0.1)
-            : Colors.orange.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.orange.withOpacity(0.3),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.admin_panel_settings,
-                color: Colors.orange.shade700,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Información administrativa',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.orange.shade700,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Estado de validación.
-          if (_mostrarValidado)
-            _construirFilaAdmin(
-              titulo: 'Estado',
-              valor: _eventoActual.validado ? 'Aprobado' : 'Pendiente',
-              valorColor:
-                  _eventoActual.validado ? Colors.green : Colors.orange,
-              icono:
-                  _eventoActual.validado ? Icons.check_circle : Icons.pending,
-            ),
-
-          // Fecha de creación.
-          if (_mostrarCreatedAt) ...[
-            const SizedBox(height: 12),
-            _construirFilaAdmin(
-              titulo: 'Creado',
-              valor: formatoFecha.format(_eventoActual.fechaCreacion),
-              icono: Icons.access_time,
-            ),
-          ],
-
-          // ID del evento (solo admin).
-          if (widget.rol == RolUsuario.administrador) ...[
-            const SizedBox(height: 12),
-            _construirFilaAdmin(
-              titulo: 'ID Evento',
-              valor: '${_eventoActual.id}',
-              icono: Icons.tag,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  // Construye una fila de información administrativa.
-  Widget _construirFilaAdmin({
-    required String titulo,
-    required String valor,
-    required IconData icono,
-    Color? valorColor,
-  }) {
-    return Row(
-      children: [
-        Icon(icono, size: 16, color: Colors.grey.shade600),
-        const SizedBox(width: 8),
-        Text(
-          '$titulo: ',
-          style: TextStyle(
-            color: Colors.grey.shade600,
-            fontSize: 13,
-          ),
-        ),
-        Text(
-          valor,
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
-            color: valorColor,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // Determina si se muestra el estado de validación.
-  bool get _mostrarValidado {
-    if (widget.rol == RolUsuario.administrador) return true;
-    if (widget.rol == RolUsuario.organizador &&
-        widget.origen == OrigenDetalle.misEventos) {
-      return true;
+      );
+      Navigator.pop(context, true);
+    } else {
+      _mostrarErrorValidacion('aprobar');
     }
-    return false;
   }
 
-  // Determina si se muestra created_at.
-  bool get _mostrarCreatedAt {
-    if (widget.rol == RolUsuario.administrador) return true;
-    if (widget.rol == RolUsuario.organizador &&
-        widget.origen == OrigenDetalle.misEventos) {
-      return true;
+  // Rechaza el evento con el comentario indicado.
+  Future<void> _rechazarEvento(String comentario) async {
+    final notifier = ref.read(validarEventoProvider.notifier);
+    final evento = await notifier.rechazarEvento(_eventoActual.id, comentario);
+
+    if (!mounted) return;
+
+    if (evento != null) {
+      ref.read(eventosAdminProvider.notifier).recargar();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Evento rechazado correctamente'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      Navigator.pop(context, true);
+    } else {
+      _mostrarErrorValidacion('rechazar');
     }
-    return false;
   }
 
-  // Determina si se muestra la fecha de publicación.
-  bool get _mostrarFechaPublicado => true;
-
-  // Determina si se muestra el resumen de comentarios.
-  bool get _mostrarResumenComentarios => true;
-
-  // Determina si se muestra la información administrativa.
-  bool get _mostrarInfoAdministrativa => _mostrarValidado || _mostrarCreatedAt;
-
-  // Formatea una fecha en español.
-  String _formatearFecha(DateTime fecha) {
-    const meses = [
-      'enero',
-      'febrero',
-      'marzo',
-      'abril',
-      'mayo',
-      'junio',
-      'julio',
-      'agosto',
-      'septiembre',
-      'octubre',
-      'noviembre',
-      'diciembre'
-    ];
-    const dias = [
-      'lunes',
-      'martes',
-      'miércoles',
-      'jueves',
-      'viernes',
-      'sábado',
-      'domingo'
-    ];
-
-    final diaSemana = dias[fecha.weekday - 1];
-    final mes = meses[fecha.month - 1];
-
-    return '$diaSemana ${fecha.day} de $mes de ${fecha.year}';
-  }
-
-  // Obtiene el nombre corto del mes.
-  String _obtenerNombreMes(int month) {
-    const months = [
-      'ENE',
-      'FEB',
-      'MAR',
-      'ABR',
-      'MAY',
-      'JUN',
-      'JUL',
-      'AGO',
-      'SEP',
-      'OCT',
-      'NOV',
-      'DIC'
-    ];
-    return months[month - 1];
+  // Muestra un error de validación.
+  void _mostrarErrorValidacion(String accion) {
+    final state = ref.read(validarEventoProvider);
+    if (state is ValidarEventoError) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al $accion: ${state.mensaje}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }

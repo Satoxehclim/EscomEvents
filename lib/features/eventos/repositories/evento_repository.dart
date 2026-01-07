@@ -55,6 +55,7 @@ abstract class EventoRepository {
     required bool eliminarImagen,
     required bool eliminarFlyer,
     required List<CategoriaModel> categorias,
+    bool limpiarComentarioAdmin = false,
   });
 
   // Elimina un evento y todos sus recursos asociados.
@@ -68,6 +69,26 @@ abstract class EventoRepository {
     FiltroEventos? filtros,
   });
 
+  // Obtiene los eventos públicos (validados) con paginación y filtros.
+  Future<ResultadoPaginado<EventModel>> obtenerEventosPublicos({
+    int pagina = 0,
+    int tamanoPagina = 10,
+    FiltroEventos? filtros,
+  });
+
+  // Obtiene todos los eventos para administración con paginación y filtros.
+  Future<ResultadoPaginado<EventModel>> obtenerEventosAdmin({
+    int pagina = 0,
+    int tamanoPagina = 10,
+    FiltroEventos? filtros,
+  });
+
+  // Valida un evento (lo aprueba para publicación).
+  Future<EventModel> validarEvento(int idEvento);
+
+  // Rechaza un evento con un comentario explicativo.
+  Future<EventModel> rechazarEvento(int idEvento, String comentario);
+
   // Sube una imagen al storage.
   Future<String?> subirImagen({
     required File archivo,
@@ -78,6 +99,14 @@ abstract class EventoRepository {
 
   // Obtiene el nombre del organizador por su ID.
   Future<String?> obtenerNombreOrganizador(String idOrganizador);
+
+  // Obtiene los eventos a los que el estudiante ha confirmado asistencia.
+  Future<ResultadoPaginado<EventModel>> obtenerEventosConAsistencia({
+    required String idPerfil,
+    int pagina = 0,
+    int tamanoPagina = 10,
+    FiltroEventos? filtros,
+  });
 }
 
 // Implementación del repositorio de eventos usando Supabase.
@@ -341,7 +370,12 @@ class EventoRepositoryImpl implements EventoRepository {
           query = query.lt('fecha', ahora).eq('validado', true);
           break;
         case FiltroEstado.pendientes:
-          query = query.eq('validado', false);
+          // Pendientes: validado=false y comentario_admin es null.
+          query = query.eq('validado', false).isFilter('comentario_admin', null);
+          break;
+        case FiltroEstado.enCorreccion:
+          // En corrección: validado=false y comentario_admin no es null.
+          query = query.eq('validado', false).not('comentario_admin', 'is', null);
           break;
         case FiltroEstado.aprobados:
           query = query.eq('validado', true);
@@ -450,6 +484,294 @@ class EventoRepositoryImpl implements EventoRepository {
   }
 
   @override
+  Future<ResultadoPaginado<EventModel>> obtenerEventosPublicos({
+    int pagina = 0,
+    int tamanoPagina = 10,
+    FiltroEventos? filtros,
+  }) async {
+    try {
+      final desde = pagina * tamanoPagina;
+      final hasta = desde + tamanoPagina - 1;
+      final ahora = DateTime.now().toIso8601String();
+
+      // Construye el query base - solo eventos validados.
+      var query = _supabase.from('Evento').select('''
+            *,
+            categorias:Evento_Categoria(
+              categoria:Categoria(*)
+            )
+          ''').eq('validado', true);
+
+      // Aplica filtros de estado (solo próximos y pasados para públicos).
+      switch (filtros?.estado) {
+        case FiltroEstado.proximos:
+          query = query.gte('fecha', ahora);
+        case FiltroEstado.pasados:
+          query = query.lt('fecha', ahora);
+        case FiltroEstado.todos:
+        case FiltroEstado.pendientes:
+        case FiltroEstado.enCorreccion:
+        case FiltroEstado.aprobados:
+        case null:
+          // Sin filtro adicional de estado.
+          break;
+      }
+
+      // Filtra por categoría si está especificada.
+      if (filtros?.idCategoria != null) {
+        final eventosConCategoria = await _supabase
+            .from('Evento_Categoria')
+            .select('id_evento')
+            .eq('id_categoria', filtros!.idCategoria!);
+
+        final idsEventos = (eventosConCategoria as List)
+            .map((e) => e['id_evento'] as int)
+            .toList();
+
+        if (idsEventos.isEmpty) {
+          return ResultadoPaginado(
+            datos: [],
+            hayMas: false,
+            paginaActual: pagina,
+          );
+        }
+
+        query = query.inFilter('id_evento', idsEventos);
+      }
+
+      // Determina el ordenamiento.
+      final orden = filtros?.orden ?? OrdenEvento.masProximos;
+      String columnaOrden;
+      bool ascendente;
+
+      switch (orden) {
+        case OrdenEvento.masRecientes:
+          columnaOrden = 'created_at';
+          ascendente = false;
+        case OrdenEvento.masAntiguos:
+          columnaOrden = 'created_at';
+          ascendente = true;
+        case OrdenEvento.masProximos:
+          columnaOrden = 'fecha';
+          ascendente = true;
+        case OrdenEvento.masLejanos:
+          columnaOrden = 'fecha';
+          ascendente = false;
+      }
+
+      // Aplica ordenamiento y paginación.
+      final respuesta = await query
+          .order(columnaOrden, ascending: ascendente)
+          .range(desde, hasta);
+
+      final eventos = (respuesta as List).map((json) {
+        final categoriasRaw = json['categorias'] as List? ?? [];
+        final categorias = categoriasRaw
+            .map((ec) => ec['categoria'] as Map<String, dynamic>?)
+            .where((c) => c != null)
+            .map((c) => CategoriaModel.fromMap(c!))
+            .toList();
+
+        return EventModel.fromMap({
+          ...json,
+          'categorias': null,
+        }).copyWith(categorias: categorias);
+      }).toList();
+
+      final hayMas = eventos.length == tamanoPagina;
+
+      return ResultadoPaginado(
+        datos: eventos,
+        hayMas: hayMas,
+        paginaActual: pagina,
+      );
+    } on PostgrestException catch (e) {
+      throw Exception('Error al obtener eventos: ${e.message}');
+    }
+  }
+
+  @override
+  Future<ResultadoPaginado<EventModel>> obtenerEventosAdmin({
+    int pagina = 0,
+    int tamanoPagina = 10,
+    FiltroEventos? filtros,
+  }) async {
+    try {
+      final desde = pagina * tamanoPagina;
+      final hasta = desde + tamanoPagina - 1;
+      final ahora = DateTime.now().toIso8601String();
+
+      // Construye el query base - todos los eventos para admin.
+      var query = _supabase.from('Evento').select('''
+            *,
+            categorias:Evento_Categoria(
+              categoria:Categoria(*)
+            )
+          ''');
+
+      // Aplica filtros de estado.
+      switch (filtros?.estado) {
+        case FiltroEstado.proximos:
+          query = query.gte('fecha', ahora);
+        case FiltroEstado.pasados:
+          query = query.lt('fecha', ahora);
+        case FiltroEstado.pendientes:
+          // Pendientes: validado=false y comentario_admin es null.
+          query = query.eq('validado', false).isFilter('comentario_admin', null);
+        case FiltroEstado.enCorreccion:
+          // En corrección: validado=false y comentario_admin no es null.
+          query = query.eq('validado', false).not('comentario_admin', 'is', null);
+        case FiltroEstado.aprobados:
+          query = query.eq('validado', true);
+        case FiltroEstado.todos:
+        case null:
+          // Sin filtro adicional de estado.
+          break;
+      }
+
+      // Filtra por categoría si está especificada.
+      if (filtros?.idCategoria != null) {
+        final eventosConCategoria = await _supabase
+            .from('Evento_Categoria')
+            .select('id_evento')
+            .eq('id_categoria', filtros!.idCategoria!);
+
+        final idsEventos = (eventosConCategoria as List)
+            .map((e) => e['id_evento'] as int)
+            .toList();
+
+        if (idsEventos.isEmpty) {
+          return ResultadoPaginado(
+            datos: [],
+            hayMas: false,
+            paginaActual: pagina,
+          );
+        }
+
+        query = query.inFilter('id_evento', idsEventos);
+      }
+
+      // Determina el ordenamiento.
+      final orden = filtros?.orden ?? OrdenEvento.masRecientes;
+      String columnaOrden;
+      bool ascendente;
+
+      switch (orden) {
+        case OrdenEvento.masRecientes:
+          columnaOrden = 'created_at';
+          ascendente = false;
+        case OrdenEvento.masAntiguos:
+          columnaOrden = 'created_at';
+          ascendente = true;
+        case OrdenEvento.masProximos:
+          columnaOrden = 'fecha';
+          ascendente = true;
+        case OrdenEvento.masLejanos:
+          columnaOrden = 'fecha';
+          ascendente = false;
+      }
+
+      // Aplica ordenamiento y paginación.
+      final respuesta = await query
+          .order(columnaOrden, ascending: ascendente)
+          .range(desde, hasta);
+
+      final eventos = (respuesta as List).map((json) {
+        final categoriasRaw = json['categorias'] as List? ?? [];
+        final categorias = categoriasRaw
+            .map((ec) => ec['categoria'] as Map<String, dynamic>?)
+            .where((c) => c != null)
+            .map((c) => CategoriaModel.fromMap(c!))
+            .toList();
+
+        return EventModel.fromMap({
+          ...json,
+          'categorias': null,
+        }).copyWith(categorias: categorias);
+      }).toList();
+
+      final hayMas = eventos.length == tamanoPagina;
+
+      return ResultadoPaginado(
+        datos: eventos,
+        hayMas: hayMas,
+        paginaActual: pagina,
+      );
+    } on PostgrestException catch (e) {
+      throw Exception('Error al obtener eventos: ${e.message}');
+    }
+  }
+
+  @override
+  Future<EventModel> validarEvento(int idEvento) async {
+    try {
+      final respuesta = await _supabase
+          .from('Evento')
+          .update({
+            'validado': true,
+            'fecha_publicado': DateTime.now().toIso8601String(),
+            'comentario_admin': null,
+          })
+          .eq('id_evento', idEvento)
+          .select('''
+            *,
+            categorias:Evento_Categoria(
+              categoria:Categoria(*)
+            )
+          ''')
+          .single();
+
+      final categoriasRaw = respuesta['categorias'] as List? ?? [];
+      final categorias = categoriasRaw
+          .map((ec) => ec['categoria'] as Map<String, dynamic>?)
+          .where((c) => c != null)
+          .map((c) => CategoriaModel.fromMap(c!))
+          .toList();
+
+      return EventModel.fromMap({
+        ...respuesta,
+        'categorias': null,
+      }).copyWith(categorias: categorias);
+    } on PostgrestException catch (e) {
+      throw Exception('Error al validar evento: ${e.message}');
+    }
+  }
+
+  @override
+  Future<EventModel> rechazarEvento(int idEvento, String comentario) async {
+    try {
+      final respuesta = await _supabase
+          .from('Evento')
+          .update({
+            'validado': false,
+            'comentario_admin': comentario,
+          })
+          .eq('id_evento', idEvento)
+          .select('''
+            *,
+            categorias:Evento_Categoria(
+              categoria:Categoria(*)
+            )
+          ''')
+          .single();
+
+      final categoriasRaw = respuesta['categorias'] as List? ?? [];
+      final categorias = categoriasRaw
+          .map((ec) => ec['categoria'] as Map<String, dynamic>?)
+          .where((c) => c != null)
+          .map((c) => CategoriaModel.fromMap(c!))
+          .toList();
+
+      return EventModel.fromMap({
+        ...respuesta,
+        'categorias': null,
+      }).copyWith(categorias: categorias);
+    } on PostgrestException catch (e) {
+      throw Exception('Error al rechazar evento: ${e.message}');
+    }
+  }
+
+  @override
   Future<EventModel> actualizarEvento({
     required EventModel eventoOriginal,
     required String nombre,
@@ -462,6 +784,7 @@ class EventoRepositoryImpl implements EventoRepository {
     required bool eliminarImagen,
     required bool eliminarFlyer,
     required List<CategoriaModel> categorias,
+    bool limpiarComentarioAdmin = false,
   }) async {
     // Guarda los datos originales para rollback.
     final datosOriginales = {
@@ -472,6 +795,7 @@ class EventoRepositoryImpl implements EventoRepository {
       'descripcion': eventoOriginal.descripcion,
       'imagen': eventoOriginal.imageUrl,
       'flyer': eventoOriginal.flyer,
+      'comentario_admin': eventoOriginal.comentarioAdmin,
     };
     final categoriasOriginales = eventoOriginal.categorias;
 
@@ -528,7 +852,7 @@ class EventoRepositoryImpl implements EventoRepository {
       }
 
       // Actualiza el evento en la base de datos.
-      final datosActualizacion = {
+      final datosActualizacion = <String, dynamic>{
         'nombre': nombre,
         'fecha': fecha.toIso8601String(),
         'lugar': lugar,
@@ -537,6 +861,11 @@ class EventoRepositoryImpl implements EventoRepository {
         'imagen': urlImagenFinal,
         'flyer': urlFlyerFinal,
       };
+
+      // Si se debe limpiar el comentario del admin, lo establece como null.
+      if (limpiarComentarioAdmin) {
+        datosActualizacion['comentario_admin'] = null;
+      }
 
       await _supabase
           .from('Evento')
@@ -582,6 +911,7 @@ class EventoRepositoryImpl implements EventoRepository {
         imageUrl: urlImagenFinal,
         flyer: urlFlyerFinal,
         categorias: categorias,
+        limpiarComentarioAdmin: limpiarComentarioAdmin,
       );
     } catch (e) {
       // Rollback: restaura los datos originales.
@@ -693,6 +1023,74 @@ class EventoRepositoryImpl implements EventoRepository {
       throw Exception('Error al eliminar evento: ${e.message}');
     } on StorageException catch (e) {
       throw Exception('Error al eliminar archivos: ${e.message}');
+    }
+  }
+
+  @override
+  Future<ResultadoPaginado<EventModel>> obtenerEventosConAsistencia({
+    required String idPerfil,
+    int pagina = 0,
+    int tamanoPagina = 10,
+    FiltroEventos? filtros,
+  }) async {
+    try {
+      // Primero obtenemos los IDs de eventos con asistencia del estudiante.
+      final asistenciasResponse = await _supabase
+          .from('Asistencia')
+          .select('id_evento')
+          .eq('id_perfil', idPerfil);
+
+      final idsEventos = (asistenciasResponse as List)
+          .map((e) => e['id_evento'] as int)
+          .toList();
+
+      if (idsEventos.isEmpty) {
+        return const ResultadoPaginado(
+          datos: [],
+          hayMas: false,
+          paginaActual: 0,
+        );
+      }
+
+      // Construye la query para obtener los eventos.
+      var query = _supabase
+          .from('Evento')
+          .select('*, Evento_Categoria(id_categoria, Categoria(*))')
+          .inFilter('id_evento', idsEventos);
+
+      // Aplica filtros de fecha.
+      final ahora = DateTime.now().toIso8601String();
+      final estado = filtros?.estado ?? FiltroEstado.todos;
+
+      if (estado == FiltroEstado.proximos) {
+        query = query.gte('fecha', ahora);
+      } else if (estado == FiltroEstado.pasados) {
+        query = query.lt('fecha', ahora);
+      }
+
+      // Determina el orden.
+      final orden = filtros?.orden ?? OrdenEvento.masProximos;
+      final ordenAscendente =
+          orden == OrdenEvento.masProximos || orden == OrdenEvento.masAntiguos;
+
+      // Paginación.
+      final inicio = pagina * tamanoPagina;
+
+      final response = await query
+          .order('fecha', ascending: ordenAscendente)
+          .range(inicio, inicio + tamanoPagina);
+
+      final eventos = (response as List).map((e) {
+        return EventModel.fromMap(e);
+      }).toList();
+
+      return ResultadoPaginado(
+        datos: eventos,
+        hayMas: eventos.length == tamanoPagina + 1,
+        paginaActual: pagina,
+      );
+    } on PostgrestException catch (e) {
+      throw Exception('Error al obtener eventos: ${e.message}');
     }
   }
 }

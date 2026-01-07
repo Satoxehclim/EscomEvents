@@ -21,6 +21,7 @@ class EventModel {
   final String lugar;
   final String? flyer; // URL o path del flyer
   final String? resumenComentarios;
+  final String? comentarioAdmin; // Comentario del admin al rechazar
   final List<CategoriaModel> categorias;
   final List<AsistenciaModel>? asistencias;
   final List<CalificacionModel>? calificaciones;
@@ -39,6 +40,7 @@ class EventModel {
     required this.lugar,
     this.flyer,
     this.resumenComentarios,
+    this.comentarioAdmin,
     required this.categorias,
     this.asistencias,
     this.calificaciones,
@@ -59,6 +61,8 @@ class EventModel {
     String? lugar,
     String? flyer,
     String? resumenComentarios,
+    String? comentarioAdmin,
+    bool limpiarComentarioAdmin = false,
     List<CategoriaModel>? categorias,
     List<AsistenciaModel>? asistencias,
     List<CalificacionModel>? calificaciones,
@@ -77,6 +81,7 @@ class EventModel {
       lugar: lugar ?? this.lugar,
       flyer: flyer ?? this.flyer,
       resumenComentarios: resumenComentarios ?? this.resumenComentarios,
+      comentarioAdmin: limpiarComentarioAdmin ? null : (comentarioAdmin ?? this.comentarioAdmin),
       categorias: categorias ?? this.categorias,
       asistencias: asistencias ?? this.asistencias,
       calificaciones: calificaciones ?? this.calificaciones,
@@ -113,6 +118,7 @@ class EventModel {
       'lugar': lugar,
       'flyer': flyer,
       'resumen_comentarios': resumenComentarios,
+      'comentario_admin': comentarioAdmin,
       'categorias': categorias.map((x) => x.toMap()).toList(),
       'asistencias': asistencias?.map((x) => x.toMap()).toList(),
       'calificaciones': calificaciones?.map((x) => x.toMap()).toList(),
@@ -149,6 +155,7 @@ class EventModel {
       lugar: map['lugar'] as String,
       flyer: map['flyer'] as String?,
       resumenComentarios: map['resumen_comentarios'] as String?,
+      comentarioAdmin: map['comentario_admin'] as String?,
       categorias: map['categorias'] != null
           ? (map['categorias'] as List)
               .map((x) => CategoriaModel.fromMap(x as Map<String, dynamic>))

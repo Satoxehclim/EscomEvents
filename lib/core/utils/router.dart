@@ -3,7 +3,9 @@ import 'package:escomevents_app/features/auth/view/pages/home_page.dart';
 import 'package:escomevents_app/features/auth/view/pages/login_page.dart';
 import 'package:escomevents_app/features/auth/view/pages/registro_page.dart';
 import 'package:escomevents_app/features/auth/viewmodel/auth_viewmodel.dart';
+import 'package:escomevents_app/features/eventos/views/pages/admin_eventos_page.dart';
 import 'package:escomevents_app/features/eventos/views/pages/eventos.dart';
+import 'package:escomevents_app/features/eventos/views/pages/mis_eventos_estudiante_page.dart';
 import 'package:escomevents_app/features/eventos/views/pages/mis_eventos_page.dart';
 import 'package:escomevents_app/main.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,8 +19,8 @@ abstract class RutasApp {
   static const String inicio = '/inicio';
   static const String eventos = '/eventos';
   static const String misEventos = '/mis-eventos';
-  // TODO: Agregar rutas de administrador.
-  // static const String validarEventos = '/validar-eventos';
+  static const String misEventosEstudiante = '/mis-eventos-estudiante';
+  static const String adminEventos = '/admin-eventos';
 }
 
 // Rutas públicas que no requieren autenticación.
@@ -28,7 +30,10 @@ const _rutasPublicas = [RutasApp.login, RutasApp.registro];
 const _rutasOrganizador = [RutasApp.misEventos];
 
 // Rutas exclusivas para administradores.
-const _rutasAdministrador = <String>[];
+const _rutasAdministrador = [RutasApp.adminEventos];
+
+// Rutas exclusivas para estudiantes.
+const _rutasEstudiante = [RutasApp.misEventosEstudiante];
 
 // Provider para el router que depende del estado de autenticación.
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -69,6 +74,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             return RutasApp.inicio;
           }
         }
+
+        // Rutas de estudiante: solo estudiantes.
+        if (_rutasEstudiante.contains(rutaActual)) {
+          if (rol != RolUsuario.estudiante) {
+            return RutasApp.inicio;
+          }
+        }
       }
 
       // No redirigir.
@@ -88,11 +100,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // Shell route para la navegación con BottomNavigationBar.
       ShellRoute(
         builder: (context, state, child) {
-          // Obtiene el rol del usuario desde Riverpod.
-          final container = ProviderScope.containerOf(context);
-          final perfil = container.read(perfilActualProvider);
-          final rol = perfil?.rol ?? RolUsuario.estudiante;
-          return BienvenidaPage(rol: rol, child: child);
+          return BienvenidaPage(child: child);
         },
         routes: [
           // Rutas accesibles para todos los usuarios autenticados.
@@ -122,12 +130,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               return MisEventosPage(rol: rol);
             },
           ),
-          // TODO: Rutas exclusivas para administradores.
-          // GoRoute(
-          //   path: RutasApp.validarEventos,
-          //   name: 'validarEventos',
-          //   builder: (context, state) => const ValidarEventosPage(),
-          // ),
+          // Rutas exclusivas para administradores.
+          GoRoute(
+            path: RutasApp.adminEventos,
+            name: 'adminEventos',
+            builder: (context, state) => const AdminEventosPage(),
+          ),
+          // Rutas exclusivas para estudiantes.
+          GoRoute(
+            path: RutasApp.misEventosEstudiante,
+            name: 'misEventosEstudiante',
+            builder: (context, state) => const MisEventosEstudiantePage(),
+          ),
         ],
       ),
     ],

@@ -4,6 +4,7 @@ enum FiltroEstado {
   proximos,
   pasados,
   pendientes,
+  enCorreccion,
   aprobados,
 }
 
@@ -58,6 +59,8 @@ String obtenerNombreFiltroEstado(FiltroEstado filtro) {
       return 'Pasados';
     case FiltroEstado.pendientes:
       return 'Pendientes';
+    case FiltroEstado.enCorreccion:
+      return 'En Corrección';
     case FiltroEstado.aprobados:
       return 'Aprobados';
   }
