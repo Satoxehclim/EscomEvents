@@ -86,6 +86,7 @@ class EditarEventoNotifier extends Notifier<EditarEventoState> {
     required bool eliminarImagen,
     required bool eliminarFlyer,
     required List<CategoriaModel> categorias,
+    bool limpiarComentarioAdmin = false,
   }) async {
     state = const EditarEventoCargando();
 
@@ -102,6 +103,7 @@ class EditarEventoNotifier extends Notifier<EditarEventoState> {
         eliminarImagen: eliminarImagen,
         eliminarFlyer: eliminarFlyer,
         categorias: categorias,
+        limpiarComentarioAdmin: limpiarComentarioAdmin,
       );
 
       state = EditarEventoExitoso(evento: eventoActualizado);
@@ -580,5 +582,257 @@ class EventosPublicosNotifier extends Notifier<EventosPublicosState> {
   void reiniciar() {
     _filtrosActuales = null;
     state = const EventosPublicosInicial();
+  }
+}
+
+// Estado para la lista de eventos de administración.
+sealed class EventosAdminState {
+  const EventosAdminState();
+}
+
+class EventosAdminInicial extends EventosAdminState {
+  const EventosAdminInicial();
+}
+
+class EventosAdminCargando extends EventosAdminState {
+  final List<EventModel> eventosAnteriores;
+  const EventosAdminCargando({this.eventosAnteriores = const []});
+}
+
+class EventosAdminExitoso extends EventosAdminState {
+  final List<EventModel> eventos;
+  final bool hayMas;
+  final int paginaActual;
+  final bool cargandoMas;
+
+  const EventosAdminExitoso({
+    required this.eventos,
+    this.hayMas = false,
+    this.paginaActual = 0,
+    this.cargandoMas = false,
+  });
+
+  EventosAdminExitoso copyWith({
+    List<EventModel>? eventos,
+    bool? hayMas,
+    int? paginaActual,
+    bool? cargandoMas,
+  }) {
+    return EventosAdminExitoso(
+      eventos: eventos ?? this.eventos,
+      hayMas: hayMas ?? this.hayMas,
+      paginaActual: paginaActual ?? this.paginaActual,
+      cargandoMas: cargandoMas ?? this.cargandoMas,
+    );
+  }
+}
+
+class EventosAdminError extends EventosAdminState {
+  final String mensaje;
+  final List<EventModel> eventosAnteriores;
+
+  const EventosAdminError({
+    required this.mensaje,
+    this.eventosAnteriores = const [],
+  });
+}
+
+// Provider para los eventos de administración.
+final eventosAdminProvider =
+    NotifierProvider<EventosAdminNotifier, EventosAdminState>(
+  EventosAdminNotifier.new,
+);
+
+// Notifier para manejar la lista de eventos para administración.
+class EventosAdminNotifier extends Notifier<EventosAdminState> {
+  late final EventoRepository _repository;
+  FiltroEventos? _filtrosActuales;
+
+  @override
+  EventosAdminState build() {
+    _repository = ref.watch(eventoRepositoryProvider);
+    return const EventosAdminInicial();
+  }
+
+  // Carga los eventos para administración.
+  Future<void> cargarEventos({FiltroEventos? filtros}) async {
+    _filtrosActuales = filtros;
+
+    final eventosAnteriores = switch (state) {
+      EventosAdminExitoso(eventos: final e) => e,
+      EventosAdminCargando(eventosAnteriores: final e) => e,
+      EventosAdminError(eventosAnteriores: final e) => e,
+      _ => <EventModel>[],
+    };
+
+    state = EventosAdminCargando(eventosAnteriores: eventosAnteriores);
+
+    try {
+      final resultado = await _repository.obtenerEventosAdmin(
+        pagina: 0,
+        filtros: filtros,
+      );
+
+      state = EventosAdminExitoso(
+        eventos: resultado.datos,
+        hayMas: resultado.hayMas,
+        paginaActual: resultado.paginaActual,
+      );
+    } catch (e) {
+      state = EventosAdminError(
+        mensaje: e.toString().replaceAll('Exception: ', ''),
+        eventosAnteriores: eventosAnteriores,
+      );
+    }
+  }
+
+  // Carga más eventos (paginación).
+  Future<void> cargarMasEventos() async {
+    final estadoActual = state;
+
+    if (estadoActual is! EventosAdminExitoso ||
+        !estadoActual.hayMas ||
+        estadoActual.cargandoMas) {
+      return;
+    }
+
+    state = estadoActual.copyWith(cargandoMas: true);
+
+    try {
+      final resultado = await _repository.obtenerEventosAdmin(
+        pagina: estadoActual.paginaActual + 1,
+        filtros: _filtrosActuales,
+      );
+
+      state = EventosAdminExitoso(
+        eventos: [...estadoActual.eventos, ...resultado.datos],
+        hayMas: resultado.hayMas,
+        paginaActual: resultado.paginaActual,
+        cargandoMas: false,
+      );
+    } catch (e) {
+      state = estadoActual.copyWith(cargandoMas: false);
+    }
+  }
+
+  // Recarga los eventos.
+  Future<void> recargar() async {
+    await cargarEventos(filtros: _filtrosActuales);
+  }
+
+  // Aplica nuevos filtros y recarga.
+  Future<void> aplicarFiltros(FiltroEventos? filtros) async {
+    await cargarEventos(filtros: filtros);
+  }
+
+  // Actualiza un evento en la lista.
+  void actualizarEvento(EventModel eventoActualizado) {
+    final estadoActual = state;
+    if (estadoActual is EventosAdminExitoso) {
+      final eventosActualizados = estadoActual.eventos.map((evento) {
+        if (evento.id == eventoActualizado.id) {
+          return eventoActualizado;
+        }
+        return evento;
+      }).toList();
+
+      state = estadoActual.copyWith(eventos: eventosActualizados);
+    }
+  }
+
+  // Elimina un evento de la lista.
+  void eliminarEvento(int idEvento) {
+    final estadoActual = state;
+    if (estadoActual is EventosAdminExitoso) {
+      final eventosActualizados = estadoActual.eventos
+          .where((evento) => evento.id != idEvento)
+          .toList();
+
+      state = estadoActual.copyWith(eventos: eventosActualizados);
+    }
+  }
+
+  // Reinicia el estado.
+  void reiniciar() {
+    _filtrosActuales = null;
+    state = const EventosAdminInicial();
+  }
+}
+
+// Estado para validar/rechazar eventos.
+sealed class ValidarEventoState {
+  const ValidarEventoState();
+}
+
+class ValidarEventoInicial extends ValidarEventoState {
+  const ValidarEventoInicial();
+}
+
+class ValidarEventoCargando extends ValidarEventoState {
+  const ValidarEventoCargando();
+}
+
+class ValidarEventoExitoso extends ValidarEventoState {
+  final EventModel evento;
+  final bool fueAprobado;
+  const ValidarEventoExitoso({required this.evento, required this.fueAprobado});
+}
+
+class ValidarEventoError extends ValidarEventoState {
+  final String mensaje;
+  const ValidarEventoError({required this.mensaje});
+}
+
+// Provider para validar/rechazar eventos.
+final validarEventoProvider =
+    NotifierProvider<ValidarEventoNotifier, ValidarEventoState>(
+  ValidarEventoNotifier.new,
+);
+
+// Notifier para manejar la validación de eventos.
+class ValidarEventoNotifier extends Notifier<ValidarEventoState> {
+  late final EventoRepository _repository;
+
+  @override
+  ValidarEventoState build() {
+    _repository = ref.watch(eventoRepositoryProvider);
+    return const ValidarEventoInicial();
+  }
+
+  // Aprueba un evento.
+  Future<EventModel?> aprobarEvento(int idEvento) async {
+    state = const ValidarEventoCargando();
+
+    try {
+      final evento = await _repository.validarEvento(idEvento);
+      state = ValidarEventoExitoso(evento: evento, fueAprobado: true);
+      return evento;
+    } catch (e) {
+      state = ValidarEventoError(
+        mensaje: e.toString().replaceAll('Exception: ', ''),
+      );
+      return null;
+    }
+  }
+
+  // Rechaza un evento con comentario.
+  Future<EventModel?> rechazarEvento(int idEvento, String comentario) async {
+    state = const ValidarEventoCargando();
+
+    try {
+      final evento = await _repository.rechazarEvento(idEvento, comentario);
+      state = ValidarEventoExitoso(evento: evento, fueAprobado: false);
+      return evento;
+    } catch (e) {
+      state = ValidarEventoError(
+        mensaje: e.toString().replaceAll('Exception: ', ''),
+      );
+      return null;
+    }
+  }
+
+  // Reinicia el estado.
+  void reiniciar() {
+    state = const ValidarEventoInicial();
   }
 }

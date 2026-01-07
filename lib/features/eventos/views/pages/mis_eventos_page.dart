@@ -30,7 +30,9 @@ class MisEventosPage extends ConsumerStatefulWidget {
 
 class _MisEventosPageState extends ConsumerState<MisEventosPage> {
   // Estado de los filtros.
-  FiltrosEventosUI _filtros = const FiltrosEventosUI();
+  FiltrosEventosUI _filtros = const FiltrosEventosUI(
+    estado: FiltroEstado.pendientes,
+  );
 
   // Controlador de scroll para detectar cuando se llega al final.
   final ScrollController _scrollController = ScrollController();

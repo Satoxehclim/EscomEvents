@@ -1,9 +1,12 @@
 import 'package:escomevents_app/core/utils/paleta.dart';
 import 'package:escomevents_app/core/view/widgets/custom_button.dart';
+import 'package:escomevents_app/core/view/widgets/custom_text_field.dart';
 import 'package:escomevents_app/features/auth/view/pages/bienvenida_page.dart';
 import 'package:escomevents_app/features/eventos/models/evento_model.dart';
+import 'package:escomevents_app/features/eventos/viewmodel/evento_viewmodel.dart';
 import 'package:escomevents_app/features/eventos/views/widgets/formulario_editar_evento.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 // Origen desde donde se navega al detalle del evento.
@@ -13,7 +16,7 @@ enum OrigenDetalle {
 }
 
 // Página que muestra los detalles completos de un evento.
-class DetalleEventoPage extends StatefulWidget {
+class DetalleEventoPage extends ConsumerStatefulWidget {
   final EventModel evento;
   final RolUsuario rol;
   final OrigenDetalle origen;
@@ -34,10 +37,10 @@ class DetalleEventoPage extends StatefulWidget {
   });
 
   @override
-  State<DetalleEventoPage> createState() => _DetalleEventoPageState();
+  ConsumerState<DetalleEventoPage> createState() => _DetalleEventoPageState();
 }
 
-class _DetalleEventoPageState extends State<DetalleEventoPage> {
+class _DetalleEventoPageState extends ConsumerState<DetalleEventoPage> {
   // Evento actual (puede actualizarse después de editar).
   late EventModel _eventoActual;
 
@@ -177,6 +180,18 @@ class _DetalleEventoPageState extends State<DetalleEventoPage> {
                   if (_mostrarInfoAdministrativa) ...[
                     const SizedBox(height: 24),
                     _construirInfoAdministrativa(theme, isDark),
+                  ],
+
+                  // Comentario del admin (si el evento fue rechazado).
+                  if (_mostrarComentarioAdmin) ...[
+                    const SizedBox(height: 24),
+                    _construirComentarioAdmin(),
+                  ],
+
+                  // Acciones de administrador (aprobar/rechazar).
+                  if (_mostrarAccionesAdmin) ...[
+                    const SizedBox(height: 24),
+                    _construirAccionesAdmin(),
                   ],
 
                   const SizedBox(height: 40),
@@ -793,6 +808,20 @@ class _DetalleEventoPageState extends State<DetalleEventoPage> {
   // Determina si se muestra la información administrativa.
   bool get _mostrarInfoAdministrativa => _mostrarValidado || _mostrarCreatedAt;
 
+  // Determina si se muestra el comentario del administrador (cuando el evento fue rechazado).
+  bool get _mostrarComentarioAdmin {
+    if (widget.rol != RolUsuario.administrador && widget.rol != RolUsuario.organizador) return false;
+    final comentario = _eventoActual.comentarioAdmin;
+    return comentario != null && comentario.isNotEmpty;
+  }
+
+  // Determina si se muestran las acciones de administrador (aprobar/rechazar).
+  bool get _mostrarAccionesAdmin {
+    if (widget.rol != RolUsuario.administrador) return false;
+    // Solo mostrar acciones si el evento está pendiente de validación.
+    return _eventoActual.validado == false;
+  }
+
   // Formatea una fecha en español.
   String _formatearFecha(DateTime fecha) {
     const meses = [
@@ -823,6 +852,253 @@ class _DetalleEventoPageState extends State<DetalleEventoPage> {
     final mes = meses[fecha.month - 1];
 
     return '$diaSemana ${fecha.day} de $mes de ${fecha.year}';
+  }
+
+  // Construye la sección del comentario del administrador.
+  Widget _construirComentarioAdmin() {
+    final theme = Theme.of(context);
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.red.shade300, width: 1.5),
+          color: Colors.red.shade50,
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  color: Colors.red.shade700,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Motivo de rechazo',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red.shade700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              _eventoActual.comentarioAdmin ?? '',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.red.shade900,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Construye las acciones de administrador (aprobar/rechazar).
+  Widget _construirAccionesAdmin() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryColor =
+        isDark ? AppColors.darkPrimary : AppColors.lightPrimary;
+    
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: primaryColor, width: 1.5),
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.admin_panel_settings,
+                  color: primaryColor,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Acciones de administrador',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: primaryColor,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: CustomButton(
+                    texto: 'Rechazar',
+                    tipo: CustomButtonType.dangerOutlined,
+                    iconoInicio: Icons.close,
+                    onPressed: () => _mostrarDialogoRechazo(isDark)
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: CustomButton(
+                    texto: 'Aprobar',
+                    tipo: CustomButtonType.success,
+                    iconoInicio: Icons.check,
+                    onPressed: () => _aprobarEvento(),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Muestra el diálogo para rechazar el evento.
+  void _mostrarDialogoRechazo(bool isDark) {
+    final comentarioController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: isDark? AppColors.darkBackground: AppColors.lightBackground,
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red),
+            SizedBox(width: 8),
+            Text('Rechazar evento'),
+          ],
+        ),
+        content: SizedBox(
+          width: MediaQuery.of(context).size.width * 0.8,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '¿Estás seguro de que deseas rechazar este evento?',
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Por favor, indica el motivo del rechazo:',
+                style: TextStyle(fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 8),
+              CustomTextField(
+                hintText: 'Escribe el motivo del rechazo...',
+                controller: comentarioController,
+                maxLines: 3,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          IntrinsicWidth(
+            child: CustomButton(
+              texto: 'Cancelar',
+              tipo: CustomButtonType.outlined,
+              anchoCompleto: false,
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          const SizedBox(width: 8),
+          IntrinsicWidth(
+            child: CustomButton(
+              texto: 'Rechazar',
+              tipo: CustomButtonType.danger,
+              iconoInicio: Icons.close,
+              anchoCompleto: false,
+              onPressed: () {
+                if (comentarioController.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Debes indicar el motivo del rechazo'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+                Navigator.pop(context);
+                _rechazarEvento(comentarioController.text.trim());
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Aprueba el evento.
+  Future<void> _aprobarEvento() async {
+    final notifier = ref.read(validarEventoProvider.notifier);
+    final evento = await notifier.aprobarEvento(_eventoActual.id);
+    
+    if (!mounted) return;
+
+    if (evento != null) {
+      // Recarga la lista de eventos del administrador.
+      ref.read(eventosAdminProvider.notifier).recargar();
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Evento aprobado correctamente'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      // Regresar a la lista de eventos admin.
+      Navigator.pop(context, true);
+    } else {
+      final state = ref.read(validarEventoProvider);
+      if (state is ValidarEventoError) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al aprobar: ${state.mensaje}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // Rechaza el evento con el comentario indicado.
+  Future<void> _rechazarEvento(String comentario) async {
+    final notifier = ref.read(validarEventoProvider.notifier);
+    final evento = await notifier.rechazarEvento(_eventoActual.id, comentario);
+    
+    if (!mounted) return;
+
+    if (evento != null) {
+      // Recarga la lista de eventos del administrador.
+      ref.read(eventosAdminProvider.notifier).recargar();
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Evento rechazado correctamente'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      // Regresar a la lista de eventos admin.
+      Navigator.pop(context, true);
+    } else {
+      final state = ref.read(validarEventoProvider);
+      if (state is ValidarEventoError) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al rechazar: ${state.mensaje}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   // Obtiene el nombre corto del mes.

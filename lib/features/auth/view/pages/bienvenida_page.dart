@@ -40,7 +40,7 @@ class _BienvenidaPageState extends State<BienvenidaPage> {
         rutasBase.add(RutasApp.misEventos);
         break;
       case RolUsuario.administrador:
-        // TODO: Agregar rutas específicas para administradores.
+        rutasBase.add(RutasApp.adminEventos);
         break;
       case RolUsuario.estudiante:
         // Los estudiantes solo tienen las rutas base.
@@ -93,7 +93,13 @@ class _BienvenidaPageState extends State<BienvenidaPage> {
         );
         break;
       case RolUsuario.administrador:
-        // TODO: Agregar items específicos para administradores.
+        itemsBase.add(
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.admin_panel_settings_outlined),
+            activeIcon: Icon(Icons.admin_panel_settings),
+            label: 'Administrar',
+          ),
+        );
         break;
       case RolUsuario.estudiante:
         // Los estudiantes solo tienen los items base.

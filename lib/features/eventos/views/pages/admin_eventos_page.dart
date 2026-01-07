@@ -5,24 +5,23 @@ import 'package:escomevents_app/features/eventos/models/filtro_eventos_model.dar
 import 'package:escomevents_app/features/eventos/viewmodel/evento_viewmodel.dart';
 import 'package:escomevents_app/features/eventos/views/pages/detalle_evento_page.dart';
 import 'package:escomevents_app/features/eventos/views/widgets/evento_card.dart';
-import 'package:escomevents_app/features/eventos/views/widgets/evento_search_header.dart';
 import 'package:escomevents_app/features/eventos/views/widgets/filtros_eventos.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// Pantalla de lista de eventos públicos para estudiantes.
-class EventsScreen extends ConsumerStatefulWidget {
-  const EventsScreen({super.key});
+// Página para que los administradores gestionen eventos pendientes.
+class AdminEventosPage extends ConsumerStatefulWidget {
+  const AdminEventosPage({super.key});
 
   @override
-  ConsumerState<EventsScreen> createState() => _EventsScreenState();
+  ConsumerState<AdminEventosPage> createState() => _AdminEventosPageState();
 }
 
-class _EventsScreenState extends ConsumerState<EventsScreen> {
-  // Estado de los filtros (solo próximos/pasados, categoría y orden).
+class _AdminEventosPageState extends ConsumerState<AdminEventosPage> {
+  // Estado de los filtros (por defecto muestra pendientes).
   FiltrosEventosUI _filtros = const FiltrosEventosUI(
-    estado: FiltroEstado.proximos,
-    orden: OrdenEvento.masProximos,
+    estado: FiltroEstado.pendientes,
+    orden: OrdenEvento.masRecientes,
   );
 
   // Controlador de scroll para detectar cuando se llega al final.
@@ -31,12 +30,10 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
   @override
   void initState() {
     super.initState();
-    // Carga los eventos al iniciar.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _cargarEventos();
     });
 
-    // Escucha el scroll para cargar más eventos.
     _scrollController.addListener(_onScroll);
   }
 
@@ -51,13 +48,13 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
   void _onScroll() {
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
-      ref.read(eventosPublicosProvider.notifier).cargarMasEventos();
+      ref.read(eventosAdminProvider.notifier).cargarMasEventos();
     }
   }
 
-  // Carga los eventos públicos.
+  // Carga los eventos para administración.
   Future<void> _cargarEventos() async {
-    await ref.read(eventosPublicosProvider.notifier).cargarEventos(
+    await ref.read(eventosAdminProvider.notifier).cargarEventos(
           filtros: _filtros.toFiltroEventos(),
         );
   }
@@ -65,7 +62,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
   // Aplica los filtros y recarga los eventos.
   void _aplicarFiltros(FiltrosEventosUI nuevosFiltros) {
     setState(() => _filtros = nuevosFiltros);
-    ref.read(eventosPublicosProvider.notifier).cargarEventos(
+    ref.read(eventosAdminProvider.notifier).cargarEventos(
           filtros: nuevosFiltros.toFiltroEventos(),
         );
   }
@@ -75,7 +72,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
     ModalFiltrosEventos.mostrar(
       context: context,
       filtrosActuales: _filtros,
-      mostrarFiltrosAvanzados: false, // Sin filtros avanzados para estudiantes.
+      mostrarFiltrosAvanzados: true, // Admin tiene todos los filtros.
       onAplicar: _aplicarFiltros,
     );
   }
@@ -92,51 +89,70 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
       MaterialPageRoute(
         builder: (context) => DetalleEventoPage(
           evento: evento,
-          rol: RolUsuario.estudiante,
-          origen: OrigenDetalle.eventos,
+          rol: RolUsuario.administrador,
+          origen: OrigenDetalle.misEventos,
           nombreOrganizador: nombreOrganizador,
+          onEventoActualizado: (eventoActualizado) {
+            ref
+                .read(eventosAdminProvider.notifier)
+                .actualizarEvento(eventoActualizado);
+          },
+          onEventoEliminado: () {
+            _eliminarEvento(evento);
+          },
         ),
       ),
     );
+  }
+
+  // Elimina un evento.
+  Future<void> _eliminarEvento(EventModel evento) async {
+    final exito =
+        await ref.read(eliminarEventoProvider.notifier).eliminarEvento(evento);
+
+    if (exito && mounted) {
+      ref.read(eventosAdminProvider.notifier).eliminarEvento(evento.id);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Evento eliminado exitosamente'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else if (mounted) {
+      final estadoError = ref.read(eliminarEventoProvider);
+      if (estadoError is EliminarEventoError) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${estadoError.mensaje}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final estadoEventos = ref.watch(eventosPublicosProvider);
+    final estadoEventos = ref.watch(eventosAdminProvider);
 
     return Scaffold(
       body: SafeArea(
         child: Column(
           children: [
             const SizedBox(height: 10),
-            // Header con búsqueda y filtros.
-            EventSearchHeader(
-              onFilterTap: _mostrarFiltros,
-            ),
+            // Header con título y botón de filtros.
+            _construirHeader(theme, isDark),
 
-            // Chips de filtro rápido (solo Próximos y Pasados).
+            // Chips de filtro rápido.
             ChipsFiltroEstado(
               filtroSeleccionado: _filtros.estado,
-              mostrarFiltrosAvanzados: false,
+              mostrarFiltrosAvanzados: true,
               onSeleccionar: (filtro) {
                 _aplicarFiltros(_filtros.copyWith(estado: filtro));
               },
-            ),
-
-            // Título de sección.
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  _obtenerTituloSeccion(),
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
             ),
 
             // Contenido según el estado.
@@ -149,23 +165,52 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
     );
   }
 
+  // Construye el header con título y botón de filtros.
+  Widget _construirHeader(ThemeData theme, bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              'Administrar Eventos',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkPrimary : AppColors.lightPrimary,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.filter_list, color: Colors.white),
+              onPressed: _mostrarFiltros,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // Construye el contenido según el estado de los eventos.
   Widget _construirContenido(
-    EventosPublicosState estado,
+    EventosAdminState estado,
     ThemeData theme,
     bool isDark,
   ) {
     return switch (estado) {
-      EventosPublicosInicial() => _construirEstadoCargando(isDark),
-      EventosPublicosCargando() => _construirEstadoCargando(isDark),
-      EventosPublicosError(
+      EventosAdminInicial() => _construirEstadoCargando(isDark),
+      EventosAdminCargando() => _construirEstadoCargando(isDark),
+      EventosAdminError(
         mensaje: final mensaje,
         eventosAnteriores: final eventosAnteriores
       ) =>
         eventosAnteriores.isNotEmpty
             ? _construirListaEventos(eventosAnteriores, theme, isDark)
             : _construirEstadoError(mensaje, theme, isDark),
-      EventosPublicosExitoso(
+      EventosAdminExitoso(
         eventos: final eventos,
         hayMas: final hayMas,
         cargandoMas: final cargandoMas
@@ -256,7 +301,6 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: itemCount,
         itemBuilder: (context, index) {
-          // Último item: indicador de carga o espacio.
           if (index == eventos.length) {
             if (cargandoMas) {
               return Padding(
@@ -289,9 +333,9 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Icons.event_busy,
+            Icons.check_circle_outline,
             size: 64,
-            color: isDark ? AppColors.darkSecondary : AppColors.lightSecondary,
+            color: Colors.green.shade400,
           ),
           const SizedBox(height: 16),
           Text(
@@ -300,23 +344,17 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
               color: Colors.grey,
             ),
           ),
+          if (_filtros.estado == FiltroEstado.pendientes) ...[
+            const SizedBox(height: 8),
+            Text(
+              '¡Todos los eventos han sido revisados!',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.grey.shade500,
+              ),
+            ),
+          ],
         ],
       ),
     );
-  }
-
-  // Obtiene el título de la sección según el filtro.
-  String _obtenerTituloSeccion() {
-    switch (_filtros.estado) {
-      case FiltroEstado.proximos:
-        return 'Próximos Eventos';
-      case FiltroEstado.pasados:
-        return 'Eventos Pasados';
-      case FiltroEstado.todos:
-      case FiltroEstado.pendientes:
-      case FiltroEstado.enCorreccion:
-      case FiltroEstado.aprobados:
-        return 'Eventos';
-    }
   }
 }

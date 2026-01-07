@@ -229,6 +229,12 @@ class _FormularioEditarEventoState
         _horaEvento.minute,
       );
 
+      // Determina si el evento estaba en estado "En Corrección".
+      // Si tiene comentario_admin y no está validado, al guardar limpiamos el comentario.
+      final estaEnCorreccion = widget.evento.comentarioAdmin != null &&
+          widget.evento.comentarioAdmin!.isNotEmpty &&
+          widget.evento.validado == false;
+
       // Actualiza el evento usando el viewmodel.
       final eventoActualizado =
           await ref.read(editarEventoProvider.notifier).actualizarEvento(
@@ -245,6 +251,7 @@ class _FormularioEditarEventoState
                 eliminarImagen: _eliminarImagenActual,
                 eliminarFlyer: _eliminarFlyerActual,
                 categorias: _categoriasSeleccionadas,
+                limpiarComentarioAdmin: estaEnCorreccion,
               );
 
       if (eventoActualizado != null && mounted) {
