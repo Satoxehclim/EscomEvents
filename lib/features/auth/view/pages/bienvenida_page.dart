@@ -42,7 +42,9 @@ class _BienvenidaPageState extends ConsumerState<BienvenidaPage> {
         rutasBase.add(RutasApp.misEventos);
         break;
       case RolUsuario.administrador:
-        rutasBase.add(RutasApp.adminEventos);
+        rutasBase
+          ..add(RutasApp.listaUsuarios)
+          ..add(RutasApp.adminEventos);
         break;
       case RolUsuario.estudiante:
         rutasBase.add(RutasApp.misEventosEstudiante);
@@ -95,13 +97,18 @@ class _BienvenidaPageState extends ConsumerState<BienvenidaPage> {
         );
         break;
       case RolUsuario.administrador:
-        itemsBase.add(
+        itemsBase.addAll([
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.people_outline),
+            activeIcon: Icon(Icons.people),
+            label: 'Usuarios',
+          ),
           const BottomNavigationBarItem(
             icon: Icon(Icons.admin_panel_settings_outlined),
             activeIcon: Icon(Icons.admin_panel_settings),
             label: 'Administrar',
           ),
-        );
+        ]);
         break;
       case RolUsuario.estudiante:
         itemsBase.add(

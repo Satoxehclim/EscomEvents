@@ -1,7 +1,10 @@
 import 'package:escomevents_app/features/auth/view/pages/bienvenida_page.dart';
 import 'package:escomevents_app/features/auth/view/pages/home_page.dart';
+import 'package:escomevents_app/features/auth/view/pages/lista_usuarios_page.dart';
 import 'package:escomevents_app/features/auth/view/pages/login_page.dart';
 import 'package:escomevents_app/features/auth/view/pages/registro_page.dart';
+import 'package:escomevents_app/features/auth/view/pages/registrar_usuario_page.dart';
+import 'package:escomevents_app/features/auth/view/pages/splash_page.dart';
 import 'package:escomevents_app/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:escomevents_app/features/eventos/views/pages/admin_eventos_page.dart';
 import 'package:escomevents_app/features/eventos/views/pages/eventos.dart';
@@ -13,24 +16,30 @@ import 'package:go_router/go_router.dart';
 
 // Nombres de las rutas de la aplicación.
 abstract class RutasApp {
+  static const String splash = '/';
   static const String login = '/login';
   static const String registro = '/registro';
-  static const String bienvenida = '/';
   static const String inicio = '/inicio';
   static const String eventos = '/eventos';
   static const String misEventos = '/mis-eventos';
   static const String misEventosEstudiante = '/mis-eventos-estudiante';
   static const String adminEventos = '/admin-eventos';
+  static const String registrarUsuario = '/registrar-usuario';
+  static const String listaUsuarios = '/lista-usuarios';
 }
 
 // Rutas públicas que no requieren autenticación.
-const _rutasPublicas = [RutasApp.login, RutasApp.registro];
+const _rutasPublicas = [RutasApp.splash, RutasApp.login, RutasApp.registro];
 
 // Rutas exclusivas para organizadores y administradores.
 const _rutasOrganizador = [RutasApp.misEventos];
 
 // Rutas exclusivas para administradores.
-const _rutasAdministrador = [RutasApp.adminEventos];
+const _rutasAdministrador = [
+  RutasApp.adminEventos,
+  RutasApp.registrarUsuario,
+  RutasApp.listaUsuarios,
+];
 
 // Rutas exclusivas para estudiantes.
 const _rutasEstudiante = [RutasApp.misEventosEstudiante];
@@ -38,12 +47,17 @@ const _rutasEstudiante = [RutasApp.misEventosEstudiante];
 // Provider para el router que depende del estado de autenticación.
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    initialLocation: RutasApp.login,
+    initialLocation: RutasApp.splash,
     redirect: (context, state) {
       // Verifica si el usuario está autenticado.
       final estaAutenticado = supabase.auth.currentSession != null;
       final rutaActual = state.uri.path;
       final esRutaPublica = _rutasPublicas.contains(rutaActual);
+
+      // No redirigir desde splash, ya que esa página maneja la navegación.
+      if (rutaActual == RutasApp.splash) {
+        return null;
+      }
 
       // Si no está autenticado y trata de acceder a una ruta protegida.
       if (!estaAutenticado && !esRutaPublica) {
@@ -51,7 +65,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
 
       // Si está autenticado y trata de acceder al login o registro.
-      if (estaAutenticado && esRutaPublica) {
+      if (estaAutenticado && (rutaActual == RutasApp.login || rutaActual == RutasApp.registro)) {
         return RutasApp.inicio;
       }
 
@@ -87,6 +101,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      // Ruta de splash para verificar sesión al iniciar.
+      GoRoute(
+        path: RutasApp.splash,
+        name: 'splash',
+        builder: (context, state) => const SplashPage(),
+      ),
       GoRoute(
         path: RutasApp.login,
         name: 'login',
@@ -103,12 +123,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return BienvenidaPage(child: child);
         },
         routes: [
-          // Rutas accesibles para todos los usuarios autenticados.
-          GoRoute(
-            path: RutasApp.bienvenida,
-            name: 'bienvenida',
-            redirect: (context, state) => RutasApp.inicio,
-          ),
           GoRoute(
             path: RutasApp.inicio,
             name: 'inicio',
@@ -135,6 +149,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: RutasApp.adminEventos,
             name: 'adminEventos',
             builder: (context, state) => const AdminEventosPage(),
+          ),
+          GoRoute(
+            path: RutasApp.registrarUsuario,
+            name: 'registrarUsuario',
+            builder: (context, state) => const RegistrarUsuarioPage(),
+          ),
+          GoRoute(
+            path: RutasApp.listaUsuarios,
+            name: 'listaUsuarios',
+            builder: (context, state) => const ListaUsuariosPage(),
           ),
           // Rutas exclusivas para estudiantes.
           GoRoute(
