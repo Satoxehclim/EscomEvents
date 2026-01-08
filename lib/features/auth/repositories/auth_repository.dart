@@ -17,6 +17,13 @@ abstract class AuthRepository {
     required String contrasena,
   });
 
+  // Invita a un nuevo usuario enviando un enlace de invitación al correo.
+  Future<void> invitarUsuario({
+    required String nombre,
+    required String correo,
+    required RolUsuario rol,
+  });
+
   // Cierra la sesión del usuario actual.
   Future<void> cerrarSesion();
 
@@ -110,6 +117,69 @@ class AuthRepositoryImpl implements AuthRepository {
       throw _manejarErrorAuth(e);
     } on PostgrestException catch (e) {
       throw Exception('Error al crear perfil: ${e.message}');
+    }
+  }
+
+  @override
+  Future<void> invitarUsuario({
+    required String nombre,
+    required String correo,
+    required RolUsuario rol,
+  }) async {
+    try {
+      // Genera un URL QR único para el nuevo usuario.
+      final urlQrTemporal =
+          'escomevents://perfil/${DateTime.now().millisecondsSinceEpoch}';
+
+      // Convierte el rol a string para el metadata.
+      String rolString;
+      switch (rol) {
+        case RolUsuario.administrador:
+          rolString = 'administrador';
+          break;
+        case RolUsuario.organizador:
+          rolString = 'organizador';
+          break;
+        case RolUsuario.estudiante:
+          rolString = 'estudiante';
+          break;
+      }
+
+      // Genera una contraseña temporal segura.
+      // El usuario la cambiará mediante el enlace de restablecimiento.
+      final contrasenaTemp =
+          'Temp${DateTime.now().millisecondsSinceEpoch}!Aa1';
+
+      // Crea el usuario con signUp.
+      final respuesta = await _supabase.auth.signUp(
+        email: correo,
+        password: contrasenaTemp,
+        data: {
+          'nombre': nombre,
+          'rol': rolString,
+          'url_qr': urlQrTemporal,
+        },
+      );
+
+      if (respuesta.user == null) {
+        throw Exception('No se pudo crear el usuario');
+      }
+
+      // Verifica si el usuario ya existe.
+      if (respuesta.user!.identities == null ||
+          respuesta.user!.identities!.isEmpty) {
+        throw Exception('Este correo ya está registrado');
+      }
+
+      // Envía un correo de restablecimiento de contraseña.
+      // El usuario usará este enlace para establecer su contraseña real.
+      await _supabase.auth.resetPasswordForEmail(correo);
+    } on AuthException catch (e) {
+      throw _manejarErrorAuth(e);
+    } on PostgrestException catch (e) {
+      throw Exception('Error al invitar usuario: ${e.message}');
+    } catch (e) {
+      throw Exception('Error al invitar usuario: $e');
     }
   }
 

@@ -2,6 +2,7 @@ import 'package:escomevents_app/features/auth/view/pages/bienvenida_page.dart';
 import 'package:escomevents_app/features/auth/view/pages/home_page.dart';
 import 'package:escomevents_app/features/auth/view/pages/login_page.dart';
 import 'package:escomevents_app/features/auth/view/pages/registro_page.dart';
+import 'package:escomevents_app/features/auth/view/pages/registrar_usuario_page.dart';
 import 'package:escomevents_app/features/auth/view/pages/splash_page.dart';
 import 'package:escomevents_app/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:escomevents_app/features/eventos/views/pages/admin_eventos_page.dart';
@@ -22,6 +23,7 @@ abstract class RutasApp {
   static const String misEventos = '/mis-eventos';
   static const String misEventosEstudiante = '/mis-eventos-estudiante';
   static const String adminEventos = '/admin-eventos';
+  static const String registrarUsuario = '/registrar-usuario';
 }
 
 // Rutas públicas que no requieren autenticación.
@@ -31,7 +33,7 @@ const _rutasPublicas = [RutasApp.splash, RutasApp.login, RutasApp.registro];
 const _rutasOrganizador = [RutasApp.misEventos];
 
 // Rutas exclusivas para administradores.
-const _rutasAdministrador = [RutasApp.adminEventos];
+const _rutasAdministrador = [RutasApp.adminEventos, RutasApp.registrarUsuario];
 
 // Rutas exclusivas para estudiantes.
 const _rutasEstudiante = [RutasApp.misEventosEstudiante];
@@ -141,6 +143,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: RutasApp.adminEventos,
             name: 'adminEventos',
             builder: (context, state) => const AdminEventosPage(),
+          ),
+          GoRoute(
+            path: RutasApp.registrarUsuario,
+            name: 'registrarUsuario',
+            builder: (context, state) => const RegistrarUsuarioPage(),
           ),
           // Rutas exclusivas para estudiantes.
           GoRoute(

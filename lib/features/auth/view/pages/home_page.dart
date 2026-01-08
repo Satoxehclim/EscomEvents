@@ -1,5 +1,6 @@
 import 'package:escomevents_app/core/utils/paleta.dart';
 import 'package:escomevents_app/core/utils/router.dart';
+import 'package:escomevents_app/features/auth/view/pages/bienvenida_page.dart';
 import 'package:escomevents_app/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -29,7 +30,7 @@ class HomePage extends ConsumerWidget {
               const SizedBox(height: 24),
 
               // Tarjetas de acceso rápido.
-              _construirSeccionAccesoRapido(context, theme, isDark),
+              _construirSeccionAccesoRapido(context, ref, theme, isDark),
               const SizedBox(height: 24),
 
               // Próximos eventos destacados.
@@ -109,9 +110,13 @@ class HomePage extends ConsumerWidget {
 
   Widget _construirSeccionAccesoRapido(
     BuildContext context,
+    WidgetRef ref,
     ThemeData theme,
     bool isDark,
   ) {
+    final perfil = ref.watch(perfilActualProvider);
+    final esAdmin = perfil?.rol == RolUsuario.administrador;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -160,6 +165,16 @@ class HomePage extends ConsumerWidget {
             ),
           ],
         ),
+        // Tarjeta adicional para administradores.
+        if (esAdmin) ...[
+          const SizedBox(height: 12),
+          _TarjetaAccesoRapido(
+            icono: Icons.person_add,
+            titulo: 'Registrar Usuario',
+            color: const Color(0xFF10B981), // Verde esmeralda.
+            onTap: () => context.push(RutasApp.registrarUsuario),
+          ),
+        ],
       ],
     );
   }

@@ -1,6 +1,7 @@
 import 'package:escomevents_app/features/auth/models/auth_state.dart';
 import 'package:escomevents_app/features/auth/models/perfil_model.dart';
 import 'package:escomevents_app/features/auth/repositories/auth_repository.dart';
+import 'package:escomevents_app/features/auth/view/pages/bienvenida_page.dart';
 import 'package:escomevents_app/features/eventos/viewmodel/categoria_viewmodel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -116,5 +117,73 @@ class AuthNotifier extends Notifier<AuthState> {
     if (state is AuthError) {
       state = const AuthNoAutenticado();
     }
+  }
+}
+
+// Estado para la invitación de usuarios.
+sealed class InvitarUsuarioState {
+  const InvitarUsuarioState();
+}
+
+class InvitarUsuarioInicial extends InvitarUsuarioState {
+  const InvitarUsuarioInicial();
+}
+
+class InvitarUsuarioCargando extends InvitarUsuarioState {
+  const InvitarUsuarioCargando();
+}
+
+class InvitarUsuarioExitoso extends InvitarUsuarioState {
+  const InvitarUsuarioExitoso();
+}
+
+class InvitarUsuarioError extends InvitarUsuarioState {
+  final String mensaje;
+  const InvitarUsuarioError({required this.mensaje});
+}
+
+// Provider para invitar usuarios.
+final invitarUsuarioProvider =
+    NotifierProvider<InvitarUsuarioNotifier, InvitarUsuarioState>(
+  InvitarUsuarioNotifier.new,
+);
+
+// Notifier para manejar la invitación de usuarios.
+class InvitarUsuarioNotifier extends Notifier<InvitarUsuarioState> {
+  late final AuthRepository _repository;
+
+  @override
+  InvitarUsuarioState build() {
+    _repository = ref.watch(authRepositoryProvider);
+    return const InvitarUsuarioInicial();
+  }
+
+  // Invita a un nuevo usuario.
+  Future<bool> invitarUsuario({
+    required String nombre,
+    required String correo,
+    required RolUsuario rol,
+  }) async {
+    state = const InvitarUsuarioCargando();
+
+    try {
+      await _repository.invitarUsuario(
+        nombre: nombre,
+        correo: correo,
+        rol: rol,
+      );
+      state = const InvitarUsuarioExitoso();
+      return true;
+    } catch (e) {
+      state = InvitarUsuarioError(
+        mensaje: e.toString().replaceAll('Exception: ', ''),
+      );
+      return false;
+    }
+  }
+
+  // Reinicia el estado.
+  void reiniciar() {
+    state = const InvitarUsuarioInicial();
   }
 }
