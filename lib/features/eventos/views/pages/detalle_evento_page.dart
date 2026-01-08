@@ -71,10 +71,30 @@ class _DetalleEventoPageState extends ConsumerState<DetalleEventoPage> {
     }
   }
 
+  // Determina si el evento ya pasó.
+  bool get _eventoYaPaso => _eventoActual.fecha.isBefore(DateTime.now());
+
+  // Determina si ya se le pasó asistencia al estudiante.
+  bool _yaSeLeMarcoAsistencia(AsistenciaEventoState estado) {
+    if (estado is AsistenciaEventoRegistrado) {
+      // Si asistio es 1, ya se le marcó asistencia.
+      return (estado.asistencia.asistio == 1);
+    }
+    return false;
+  }
+
   // Determina si el botón de asistencia debe mostrarse.
   bool get _mostrarBotonAsistencia {
     final perfil = ref.read(perfilActualProvider);
-    return perfil?.rol == RolUsuario.estudiante;
+    if (perfil?.rol != RolUsuario.estudiante) return false;
+
+    // No mostrar si el evento ya pasó.
+    if (_eventoYaPaso) return false;
+
+    // No mostrar si el evento está cancelado.
+    if (_eventoActual.cancelado) return false;
+
+    return true;
   }
 
   // Obtiene el rol actual del usuario.
@@ -332,6 +352,11 @@ class _DetalleEventoPageState extends ConsumerState<DetalleEventoPage> {
   Widget _construirBotonAsistencia() {
     final asistenciaState = ref.watch(asistenciaProvider);
     final perfil = ref.watch(perfilActualProvider);
+
+    // Si ya se le marcó asistencia, no mostrar el botón.
+    if (_yaSeLeMarcoAsistencia(asistenciaState)) {
+      return const SizedBox.shrink();
+    }
 
     // Determina el estado del botón.
     final estaCargando = asistenciaState is AsistenciaEventoCargando;
