@@ -51,8 +51,8 @@ class _RegistroPageState extends ConsumerState<RegistroPage> {
         // Muestra un diálogo indicando que debe confirmar su correo.
         _mostrarDialogoConfirmacion();
       } else {
-        // Si no requiere confirmación, navega a bienvenida.
-        context.go(RutasApp.bienvenida, extra: perfil?.rol);
+        // Si no requiere confirmación, navega a inicio.
+        context.go(RutasApp.inicio);
       }
     }
   }
