@@ -182,6 +182,67 @@ class EliminarEventoNotifier extends Notifier<EliminarEventoState> {
   }
 }
 
+// Estado para cancelar eventos.
+sealed class CancelarEventoState {
+  const CancelarEventoState();
+}
+
+class CancelarEventoInicial extends CancelarEventoState {
+  const CancelarEventoInicial();
+}
+
+class CancelarEventoCargando extends CancelarEventoState {
+  const CancelarEventoCargando();
+}
+
+class CancelarEventoExitoso extends CancelarEventoState {
+  final EventModel evento;
+  const CancelarEventoExitoso({required this.evento});
+}
+
+class CancelarEventoError extends CancelarEventoState {
+  final String mensaje;
+  const CancelarEventoError({required this.mensaje});
+}
+
+// Provider para cancelar eventos.
+final cancelarEventoProvider =
+    NotifierProvider<CancelarEventoNotifier, CancelarEventoState>(
+  CancelarEventoNotifier.new,
+);
+
+// Notifier para manejar la cancelación de eventos.
+class CancelarEventoNotifier extends Notifier<CancelarEventoState> {
+  late final EventoRepository _repository;
+
+  @override
+  CancelarEventoState build() {
+    _repository = ref.watch(eventoRepositoryProvider);
+    return const CancelarEventoInicial();
+  }
+
+  // Cancela un evento.
+  Future<EventModel?> cancelarEvento(int idEvento) async {
+    state = const CancelarEventoCargando();
+
+    try {
+      final evento = await _repository.cancelarEvento(idEvento);
+      state = CancelarEventoExitoso(evento: evento);
+      return evento;
+    } catch (e) {
+      state = CancelarEventoError(
+        mensaje: e.toString().replaceAll('Exception: ', ''),
+      );
+      return null;
+    }
+  }
+
+  // Reinicia el estado.
+  void reiniciar() {
+    state = const CancelarEventoInicial();
+  }
+}
+
 // Provider para crear eventos.
 final crearEventoProvider =
     NotifierProvider<CrearEventoNotifier, CrearEventoState>(

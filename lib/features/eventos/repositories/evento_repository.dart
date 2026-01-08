@@ -107,6 +107,9 @@ abstract class EventoRepository {
     int tamanoPagina = 10,
     FiltroEventos? filtros,
   });
+
+  // Cancela un evento (solo el organizador).
+  Future<EventModel> cancelarEvento(int idEvento);
 }
 
 // Implementación del repositorio de eventos usando Supabase.
@@ -137,10 +140,11 @@ class EventoRepositoryImpl implements EventoRepository {
 
     try {
       // Inserta el evento en la base de datos.
+      // Convierte a UTC para almacenamiento consistente.
       final datosEvento = {
         'id_organizador': idOrganizador,
         'nombre': nombre,
-        'fecha': fecha.toIso8601String(),
+        'fecha': fecha.toUtc().toIso8601String(),
         'lugar': lugar,
         'entrada_libre': entradaLibre,
         'descripcion': descripcion,
@@ -351,7 +355,7 @@ class EventoRepositoryImpl implements EventoRepository {
     try {
       final desde = pagina * tamanoPagina;
       final hasta = desde + tamanoPagina - 1;
-      final ahora = DateTime.now().toIso8601String();
+      final ahora = DateTime.now().toUtc().toIso8601String();
 
       // Construye el query base.
       var query = _supabase.from('Evento').select('''
@@ -492,7 +496,7 @@ class EventoRepositoryImpl implements EventoRepository {
     try {
       final desde = pagina * tamanoPagina;
       final hasta = desde + tamanoPagina - 1;
-      final ahora = DateTime.now().toIso8601String();
+      final ahora = DateTime.now().toUtc().toIso8601String();
 
       // Construye el query base - solo eventos validados.
       var query = _supabase.from('Evento').select('''
@@ -599,7 +603,7 @@ class EventoRepositoryImpl implements EventoRepository {
     try {
       final desde = pagina * tamanoPagina;
       final hasta = desde + tamanoPagina - 1;
-      final ahora = DateTime.now().toIso8601String();
+      final ahora = DateTime.now().toUtc().toIso8601String();
 
       // Construye el query base - todos los eventos para admin.
       var query = _supabase.from('Evento').select('''
@@ -709,7 +713,7 @@ class EventoRepositoryImpl implements EventoRepository {
           .from('Evento')
           .update({
             'validado': true,
-            'fecha_publicado': DateTime.now().toIso8601String(),
+            'fecha_publicado': DateTime.now().toUtc().toIso8601String(),
             'comentario_admin': null,
           })
           .eq('id_evento', idEvento)
@@ -789,7 +793,7 @@ class EventoRepositoryImpl implements EventoRepository {
     // Guarda los datos originales para rollback.
     final datosOriginales = {
       'nombre': eventoOriginal.nombre,
-      'fecha': eventoOriginal.fecha.toIso8601String(),
+      'fecha': eventoOriginal.fecha.toUtc().toIso8601String(),
       'lugar': eventoOriginal.lugar,
       'entrada_libre': eventoOriginal.entradaLibre,
       'descripcion': eventoOriginal.descripcion,
@@ -854,7 +858,7 @@ class EventoRepositoryImpl implements EventoRepository {
       // Actualiza el evento en la base de datos.
       final datosActualizacion = <String, dynamic>{
         'nombre': nombre,
-        'fecha': fecha.toIso8601String(),
+        'fecha': fecha.toUtc().toIso8601String(),
         'lugar': lugar,
         'entrada_libre': entradaLibre,
         'descripcion': descripcion,
@@ -1055,17 +1059,65 @@ class EventoRepositoryImpl implements EventoRepository {
       // Construye la query para obtener los eventos.
       var query = _supabase
           .from('Evento')
-          .select('*, Evento_Categoria(id_categoria, Categoria(*))')
+          .select('''
+            *,
+            categorias:Evento_Categoria(
+              categoria:Categoria(*)
+            )
+          ''')
           .inFilter('id_evento', idsEventos);
 
       // Aplica filtros de fecha.
-      final ahora = DateTime.now().toIso8601String();
+      final ahora = DateTime.now().toUtc().toIso8601String();
       final estado = filtros?.estado ?? FiltroEstado.todos;
 
       if (estado == FiltroEstado.proximos) {
         query = query.gte('fecha', ahora);
       } else if (estado == FiltroEstado.pasados) {
         query = query.lt('fecha', ahora);
+      }
+
+      // Filtra por categoría si está especificada.
+      if (filtros?.idCategoria != null) {
+        final eventosConCategoria = await _supabase
+            .from('Evento_Categoria')
+            .select('id_evento')
+            .eq('id_categoria', filtros!.idCategoria!);
+
+        final idsEventosConCategoria = (eventosConCategoria as List)
+            .map((e) => e['id_evento'] as int)
+            .toSet();
+
+        // Filtra solo los eventos que tienen la categoría.
+        final idsEventosFiltrados = idsEventos
+            .where((id) => idsEventosConCategoria.contains(id))
+            .toList();
+
+        if (idsEventosFiltrados.isEmpty) {
+          return ResultadoPaginado(
+            datos: [],
+            hayMas: false,
+            paginaActual: pagina,
+          );
+        }
+
+        // Reconstruye la query con los IDs filtrados.
+        query = _supabase
+            .from('Evento')
+            .select('''
+              *,
+              categorias:Evento_Categoria(
+                categoria:Categoria(*)
+              )
+            ''')
+            .inFilter('id_evento', idsEventosFiltrados);
+
+        // Reaplicar filtro de fecha.
+        if (estado == FiltroEstado.proximos) {
+          query = query.gte('fecha', ahora);
+        } else if (estado == FiltroEstado.pasados) {
+          query = query.lt('fecha', ahora);
+        }
       }
 
       // Determina el orden.
@@ -1080,8 +1132,18 @@ class EventoRepositoryImpl implements EventoRepository {
           .order('fecha', ascending: ordenAscendente)
           .range(inicio, inicio + tamanoPagina);
 
-      final eventos = (response as List).map((e) {
-        return EventModel.fromMap(e);
+      final eventos = (response as List).map((json) {
+        final categoriasRaw = json['categorias'] as List? ?? [];
+        final categorias = categoriasRaw
+            .map((ec) => ec['categoria'] as Map<String, dynamic>?)
+            .where((c) => c != null)
+            .map((c) => CategoriaModel.fromMap(c!))
+            .toList();
+
+        return EventModel.fromMap({
+          ...json,
+          'categorias': null,
+        }).copyWith(categorias: categorias);
       }).toList();
 
       return ResultadoPaginado(
@@ -1091,6 +1153,37 @@ class EventoRepositoryImpl implements EventoRepository {
       );
     } on PostgrestException catch (e) {
       throw Exception('Error al obtener eventos: ${e.message}');
+    }
+  }
+
+  @override
+  Future<EventModel> cancelarEvento(int idEvento) async {
+    try {
+      final response = await _supabase
+          .from('Evento')
+          .update({'cancelado': true})
+          .eq('id_evento', idEvento)
+          .select('''
+            *,
+            categorias:Evento_Categoria(
+              categoria:Categoria(*)
+            )
+          ''')
+          .single();
+
+      final categoriasRaw = response['categorias'] as List? ?? [];
+      final categorias = categoriasRaw
+          .map((ec) => ec['categoria'] as Map<String, dynamic>?)
+          .where((c) => c != null)
+          .map((c) => CategoriaModel.fromMap(c!))
+          .toList();
+
+      return EventModel.fromMap({
+        ...response,
+        'categorias': null,
+      }).copyWith(categorias: categorias);
+    } on PostgrestException catch (e) {
+      throw Exception('Error al cancelar evento: ${e.message}');
     }
   }
 }
