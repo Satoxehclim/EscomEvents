@@ -48,13 +48,22 @@ class CalificacionModel {
   }
 
   factory CalificacionModel.fromMap(Map<String, dynamic> map) {
+    // Parsea la fecha desde string ISO 8601 y la convierte a hora local.
+    DateTime parsearFecha(dynamic valor) {
+      if (valor == null) return DateTime.now();
+      if (valor is DateTime) return valor.toLocal();
+      if (valor is String) return DateTime.parse(valor).toLocal();
+      if (valor is int) return DateTime.fromMillisecondsSinceEpoch(valor);
+      return DateTime.now();
+    }
+
     return CalificacionModel(
       id: map['id_calificacion'] as int,
       idEstudiante: map['id_perfil'] != null ? map['id_perfil'] as String : null,
       idEvento: map['id_evento'] as int,
       calificacion: map['calificacion'] as int,
       comentario: map['comentario'] != null ? map['comentario'] as String : null,
-      fechaCalificacion: DateTime.fromMillisecondsSinceEpoch(map['fecha'] as int),
+      fechaCalificacion: parsearFecha(map['fecha']),
     );
   }
 

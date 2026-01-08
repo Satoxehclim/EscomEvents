@@ -4,6 +4,7 @@ import 'package:escomevents_app/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:escomevents_app/features/eventos/models/evento_model.dart';
 import 'package:escomevents_app/features/eventos/viewmodel/asistencia_viewmodel.dart';
 import 'package:escomevents_app/features/eventos/viewmodel/evento_viewmodel.dart';
+import 'package:escomevents_app/features/eventos/views/pages/calificaciones_evento_page.dart';
 import 'package:escomevents_app/features/eventos/views/widgets/detalle_evento_widgets.dart';
 import 'package:escomevents_app/features/eventos/views/widgets/escaner_asistencia.dart';
 import 'package:escomevents_app/features/eventos/views/widgets/formulario_editar_evento.dart';
@@ -164,11 +165,38 @@ class _DetalleEventoPageState extends ConsumerState<DetalleEventoPage> {
     return true;
   }
 
+  // Determina si se muestra el botón de ver calificaciones.
+  bool get _mostrarBotonCalificaciones {
+    // Para administradores, pueden ver calificaciones de cualquier evento validado.
+    if (_rolActual == RolUsuario.administrador) {
+      return _eventoActual.validado;
+    }
+    // Para organizadores, solo sus propios eventos validados.
+    if (_rolActual == RolUsuario.organizador &&
+        widget.origen == OrigenDetalle.misEventos &&
+        _eventoActual.validado) {
+      return true;
+    }
+    return false;
+  }
+
   // Abre el escáner de asistencia.
   void _abrirEscanerAsistencia() {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => EscanerAsistenciaPage(
+          idEvento: _eventoActual.id,
+          nombreEvento: _eventoActual.nombre,
+        ),
+      ),
+    );
+  }
+
+  // Abre la página de calificaciones del evento.
+  void _abrirCalificaciones() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => CalificacionesEventoPage(
           idEvento: _eventoActual.id,
           nombreEvento: _eventoActual.nombre,
         ),
@@ -282,6 +310,14 @@ class _DetalleEventoPageState extends ConsumerState<DetalleEventoPage> {
                       mostrarValidado: _mostrarValidado,
                       mostrarCreatedAt: _mostrarCreatedAt,
                       mostrarIdEvento: _rolActual == RolUsuario.administrador,
+                    ),
+                  ],
+
+                  // Botón de ver calificaciones para organizadores.
+                  if (_mostrarBotonCalificaciones) ...[
+                    const SizedBox(height: 24),
+                    BotonVerCalificaciones(
+                      onPressed: _abrirCalificaciones,
                     ),
                   ],
 

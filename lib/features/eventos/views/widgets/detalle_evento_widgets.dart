@@ -1201,3 +1201,88 @@ class DialogoCancelarAsistencia {
     );
   }
 }
+
+// Botón para ver las calificaciones del evento.
+class BotonVerCalificaciones extends StatelessWidget {
+  final VoidCallback onPressed;
+
+  const BotonVerCalificaciones({
+    required this.onPressed,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryColor =
+        isDark ? AppColors.darkPrimary : AppColors.lightPrimary;
+
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          // gradient: LinearGradient(
+          //   colors: [
+          //     primaryColor.withOpacity(0.15),
+          //     primaryColor.withOpacity(0.05),
+          //   ],
+          //   begin: Alignment.topLeft,
+          //   end: Alignment.bottomRight,
+          // ),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: primaryColor.withOpacity(0.3),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: primaryColor.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                Icons.star_rounded,
+                color: isDark
+                    ? AppColors.darkPrimary
+                    : AppColors.lightPrimary,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Ver calificaciones',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: primaryColor,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Revisa las opiniones de los asistentes',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: primaryColor,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
