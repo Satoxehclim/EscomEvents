@@ -1077,6 +1077,49 @@ class EventoRepositoryImpl implements EventoRepository {
         query = query.lt('fecha', ahora);
       }
 
+      // Filtra por categoría si está especificada.
+      if (filtros?.idCategoria != null) {
+        final eventosConCategoria = await _supabase
+            .from('Evento_Categoria')
+            .select('id_evento')
+            .eq('id_categoria', filtros!.idCategoria!);
+
+        final idsEventosConCategoria = (eventosConCategoria as List)
+            .map((e) => e['id_evento'] as int)
+            .toSet();
+
+        // Filtra solo los eventos que tienen la categoría.
+        final idsEventosFiltrados = idsEventos
+            .where((id) => idsEventosConCategoria.contains(id))
+            .toList();
+
+        if (idsEventosFiltrados.isEmpty) {
+          return ResultadoPaginado(
+            datos: [],
+            hayMas: false,
+            paginaActual: pagina,
+          );
+        }
+
+        // Reconstruye la query con los IDs filtrados.
+        query = _supabase
+            .from('Evento')
+            .select('''
+              *,
+              categorias:Evento_Categoria(
+                categoria:Categoria(*)
+              )
+            ''')
+            .inFilter('id_evento', idsEventosFiltrados);
+
+        // Reaplicar filtro de fecha.
+        if (estado == FiltroEstado.proximos) {
+          query = query.gte('fecha', ahora);
+        } else if (estado == FiltroEstado.pasados) {
+          query = query.lt('fecha', ahora);
+        }
+      }
+
       // Determina el orden.
       final orden = filtros?.orden ?? OrdenEvento.masProximos;
       final ordenAscendente =
