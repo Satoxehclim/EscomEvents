@@ -1059,7 +1059,12 @@ class EventoRepositoryImpl implements EventoRepository {
       // Construye la query para obtener los eventos.
       var query = _supabase
           .from('Evento')
-          .select('*, Evento_Categoria(id_categoria, Categoria(*))')
+          .select('''
+            *,
+            categorias:Evento_Categoria(
+              categoria:Categoria(*)
+            )
+          ''')
           .inFilter('id_evento', idsEventos);
 
       // Aplica filtros de fecha.
@@ -1084,8 +1089,18 @@ class EventoRepositoryImpl implements EventoRepository {
           .order('fecha', ascending: ordenAscendente)
           .range(inicio, inicio + tamanoPagina);
 
-      final eventos = (response as List).map((e) {
-        return EventModel.fromMap(e);
+      final eventos = (response as List).map((json) {
+        final categoriasRaw = json['categorias'] as List? ?? [];
+        final categorias = categoriasRaw
+            .map((ec) => ec['categoria'] as Map<String, dynamic>?)
+            .where((c) => c != null)
+            .map((c) => CategoriaModel.fromMap(c!))
+            .toList();
+
+        return EventModel.fromMap({
+          ...json,
+          'categorias': null,
+        }).copyWith(categorias: categorias);
       }).toList();
 
       return ResultadoPaginado(
@@ -1105,10 +1120,25 @@ class EventoRepositoryImpl implements EventoRepository {
           .from('Evento')
           .update({'cancelado': true})
           .eq('id_evento', idEvento)
-          .select('*, Evento_Categoria(id_categoria, Categoria(*))')
+          .select('''
+            *,
+            categorias:Evento_Categoria(
+              categoria:Categoria(*)
+            )
+          ''')
           .single();
 
-      return EventModel.fromMap(response);
+      final categoriasRaw = response['categorias'] as List? ?? [];
+      final categorias = categoriasRaw
+          .map((ec) => ec['categoria'] as Map<String, dynamic>?)
+          .where((c) => c != null)
+          .map((c) => CategoriaModel.fromMap(c!))
+          .toList();
+
+      return EventModel.fromMap({
+        ...response,
+        'categorias': null,
+      }).copyWith(categorias: categorias);
     } on PostgrestException catch (e) {
       throw Exception('Error al cancelar evento: ${e.message}');
     }

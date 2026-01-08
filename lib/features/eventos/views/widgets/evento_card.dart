@@ -39,7 +39,9 @@ class EventCard extends StatelessWidget {
                       color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
                       child: Center(
                         child: Icon(
-                          event.categorias[0].icono,
+                          event.categorias.isNotEmpty
+                              ? event.categorias[0].icono
+                              : Icons.event,
                           size: 50,
                           color: isDark ? Colors.grey.shade600 : Colors.grey.shade500,
                         ),
@@ -53,7 +55,9 @@ class EventCard extends StatelessWidget {
                     color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
                     child: Center(
                       child: Icon(
-                        event.categorias[0].icono,
+                        event.categorias.isNotEmpty
+                            ? event.categorias[0].icono
+                            : Icons.event,
                         size: 50,
                         color: isDark ? AppColors.darkPrimary : AppColors.lightPrimary,
                       ),
