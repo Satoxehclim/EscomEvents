@@ -167,11 +167,17 @@ class _DetalleEventoPageState extends ConsumerState<DetalleEventoPage> {
 
   // Determina si se muestra el botón de ver calificaciones.
   bool get _mostrarBotonCalificaciones {
-    // Solo para organizadores viendo sus propios eventos validados.
-    if (_rolActual != RolUsuario.organizador) return false;
-    if (widget.origen != OrigenDetalle.misEventos) return false;
-    if (!_eventoActual.validado) return false;
-    return true;
+    // Para administradores, pueden ver calificaciones de cualquier evento validado.
+    if (_rolActual == RolUsuario.administrador) {
+      return _eventoActual.validado;
+    }
+    // Para organizadores, solo sus propios eventos validados.
+    if (_rolActual == RolUsuario.organizador &&
+        widget.origen == OrigenDetalle.misEventos &&
+        _eventoActual.validado) {
+      return true;
+    }
+    return false;
   }
 
   // Abre el escáner de asistencia.
