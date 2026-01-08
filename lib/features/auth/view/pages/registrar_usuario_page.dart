@@ -111,10 +111,9 @@ class _RegistrarUsuarioPageState extends ConsumerState<RegistrarUsuarioPage> {
       appBar: AppBar(
         title: Text(
           'Registrar Usuario',
-          style: TextStyle(
-            color: isDark ? AppColors.darkPrimary : AppColors.lightPrimary,
-            fontWeight: FontWeight.bold,
-          ),
+          style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
         ),
         backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
         elevation: 0,

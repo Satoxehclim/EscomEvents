@@ -165,16 +165,7 @@ class HomePage extends ConsumerWidget {
             ),
           ],
         ),
-        // Tarjeta adicional para administradores.
-        if (esAdmin) ...[
-          const SizedBox(height: 12),
-          _TarjetaAccesoRapido(
-            icono: Icons.person_add,
-            titulo: 'Registrar Usuario',
-            color: const Color(0xFF10B981), // Verde esmeralda.
-            onTap: () => context.push(RutasApp.registrarUsuario),
-          ),
-        ],
+        
       ],
     );
   }
