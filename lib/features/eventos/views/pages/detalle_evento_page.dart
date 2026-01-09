@@ -3,10 +3,12 @@ import 'package:escomevents_app/features/home/views/pages/bienvenida_page.dart';
 import 'package:escomevents_app/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:escomevents_app/features/eventos/models/evento_model.dart';
 import 'package:escomevents_app/features/eventos/viewmodel/asistencia_viewmodel.dart';
+import 'package:escomevents_app/features/eventos/viewmodel/calificacion_viewmodel.dart';
 import 'package:escomevents_app/features/eventos/viewmodel/evento_viewmodel.dart';
 import 'package:escomevents_app/features/eventos/views/pages/calificaciones_evento_page.dart';
 import 'package:escomevents_app/features/eventos/views/pages/lista_asistentes_page.dart';
 import 'package:escomevents_app/features/eventos/views/widgets/detalle_evento_widgets.dart';
+import 'package:escomevents_app/features/eventos/views/widgets/dialogo_calificar_evento.dart';
 import 'package:escomevents_app/features/eventos/views/widgets/escaner_asistencia.dart';
 import 'package:escomevents_app/features/eventos/views/widgets/formulario_editar_evento.dart';
 import 'package:escomevents_app/core/utils/paleta.dart';
@@ -53,11 +55,12 @@ class _DetalleEventoPageState extends ConsumerState<DetalleEventoPage> {
   void initState() {
     super.initState();
     _eventoActual = widget.evento;
-    // Verifica asistencia si es estudiante.
+    // Verifica asistencia y calificación si es estudiante.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final perfil = ref.read(perfilActualProvider);
       if (perfil?.rol == RolUsuario.estudiante) {
         _verificarAsistencia();
+        _verificarCalificacion();
       }
     });
   }
@@ -67,6 +70,17 @@ class _DetalleEventoPageState extends ConsumerState<DetalleEventoPage> {
     final perfil = ref.read(perfilActualProvider);
     if (perfil != null) {
       ref.read(asistenciaProvider.notifier).verificarAsistencia(
+            idPerfil: perfil.idPerfil,
+            idEvento: _eventoActual.id,
+          );
+    }
+  }
+
+  // Verifica si el estudiante ya calificó el evento.
+  void _verificarCalificacion() {
+    final perfil = ref.read(perfilActualProvider);
+    if (perfil != null) {
+      ref.read(calificacionEstudianteProvider.notifier).verificarCalificacion(
             idPerfil: perfil.idPerfil,
             idEvento: _eventoActual.id,
           );
@@ -188,6 +202,28 @@ class _DetalleEventoPageState extends ConsumerState<DetalleEventoPage> {
     if (widget.origen != OrigenDetalle.misEventos) return false;
     if (!_eventoActual.validado) return false;
     return true;
+  }
+
+  // Determina si el estudiante puede calificar el evento.
+  bool _puedeCalificar(AsistenciaEventoState asistenciaState) {
+    // Solo estudiantes pueden calificar.
+    if (_rolActual != RolUsuario.estudiante) return false;
+
+    // El evento debe haber pasado.
+    if (!_eventoYaPaso) return false;
+
+    // El evento no debe estar cancelado.
+    if (_eventoActual.cancelado) return false;
+
+    // Si es entrada libre, puede calificar.
+    if (_eventoActual.entradaLibre) return true;
+
+    // Si no es entrada libre, debe tener asistencia marcada (asistio = 1).
+    if (asistenciaState is AsistenciaEventoRegistrado) {
+      return asistenciaState.asistencia.asistio == 1;
+    }
+
+    return false;
   }
 
   // Abre el escáner de asistencia.
@@ -375,6 +411,9 @@ class _DetalleEventoPageState extends ConsumerState<DetalleEventoPage> {
                     _construirBotonAsistencia(),
                   ],
 
+                  // Sección de calificación para estudiantes.
+                  _construirSeccionCalificacion(),
+
                   const SizedBox(height: 40),
                 ],
               ),
@@ -434,6 +473,145 @@ class _DetalleEventoPageState extends ConsumerState<DetalleEventoPage> {
       estaCargando: estaCargando,
       onRegistrar: () => _registrarAsistencia(perfil),
       onCancelar: () => _cancelarAsistencia(asistenciaState),
+    );
+  }
+
+  // Construye la sección de calificación para estudiantes.
+  Widget _construirSeccionCalificacion() {
+    final asistenciaState = ref.watch(asistenciaProvider);
+    final calificacionState = ref.watch(calificacionEstudianteProvider);
+
+    // Verifica si puede calificar.
+    if (!_puedeCalificar(asistenciaState)) {
+      return const SizedBox.shrink();
+    }
+
+    // Si ya calificó, muestra la calificación.
+    if (calificacionState is CalificacionEstudianteCalificado) {
+      return _construirCalificacionExistente(calificacionState.calificacion);
+    }
+
+    // Si no ha calificado, muestra el botón para calificar.
+    if (calificacionState is CalificacionEstudianteNoCalificado) {
+      return Column(
+        children: [
+          const SizedBox(height: 24),
+          BotonCalificarEvento(onPressed: _mostrarDialogoCalificar),
+        ],
+      );
+    }
+
+    // Si está cargando, muestra un indicador.
+    if (calificacionState is CalificacionEstudianteCargando) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 24),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return const SizedBox.shrink();
+  }
+
+  // Construye el widget que muestra la calificación existente.
+  Widget _construirCalificacionExistente(dynamic calificacion) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Column(
+      children: [
+        const SizedBox(height: 24),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDark
+                ? Colors.amber.withValues(alpha: 0.1)
+                : Colors.amber.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: Colors.amber.withValues(alpha: 0.3),
+            ),
+          ),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.green, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Ya calificaste este evento',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (index) {
+                  final estrella = index + 1;
+                  return Icon(
+                    estrella <= calificacion.calificacion
+                        ? Icons.star_rounded
+                        : Icons.star_outline_rounded,
+                    color: isDark ? AppColors.darkPrimary : AppColors.lightPrimary,
+                    size: 28,
+                  );
+                }),
+              ),
+              if (calificacion.comentario != null &&
+                  calificacion.comentario!.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text(
+                  '"${calificacion.comentario}"',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontStyle: FontStyle.italic,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Muestra el diálogo para calificar el evento.
+  void _mostrarDialogoCalificar() {
+    DialogoCalificarEvento.mostrar(
+      context: context,
+      nombreEvento: _eventoActual.nombre,
+      onCalificar: (calificacion, comentario) async {
+        final perfil = ref.read(perfilActualProvider);
+        if (perfil == null) return false;
+
+        final exito = await ref
+            .read(calificacionEstudianteProvider.notifier)
+            .calificar(
+              idPerfil: perfil.idPerfil,
+              idEvento: _eventoActual.id,
+              calificacion: calificacion,
+              comentario: comentario,
+            );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                exito
+                    ? '¡Gracias por tu calificación!'
+                    : 'Error al enviar calificación',
+              ),
+              backgroundColor: exito ? Colors.green : Colors.red,
+            ),
+          );
+        }
+
+        return exito;
+      },
     );
   }
 

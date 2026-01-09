@@ -1361,3 +1361,36 @@ class BotonVerAsistentes extends StatelessWidget {
     );
   }
 }
+
+// Botón para calificar un evento.
+class BotonCalificarEvento extends StatelessWidget {
+  final VoidCallback onPressed;
+
+  const BotonCalificarEvento({
+    required this.onPressed,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: const Icon(Icons.star_rounded),
+        label: const Text('Calificar evento'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.amber,
+          foregroundColor: isDark ? Colors.black : Colors.black87,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+    );
+  }
+}

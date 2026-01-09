@@ -8,6 +8,106 @@ final calificacionRepositoryProvider = Provider<CalificacionRepository>((ref) {
   return CalificacionRepositoryImpl();
 });
 
+// Estados para la calificación del estudiante.
+sealed class CalificacionEstudianteState {
+  const CalificacionEstudianteState();
+}
+
+class CalificacionEstudianteInicial extends CalificacionEstudianteState {
+  const CalificacionEstudianteInicial();
+}
+
+class CalificacionEstudianteCargando extends CalificacionEstudianteState {
+  const CalificacionEstudianteCargando();
+}
+
+class CalificacionEstudianteNoCalificado extends CalificacionEstudianteState {
+  const CalificacionEstudianteNoCalificado();
+}
+
+class CalificacionEstudianteCalificado extends CalificacionEstudianteState {
+  final CalificacionModel calificacion;
+  const CalificacionEstudianteCalificado(this.calificacion);
+}
+
+class CalificacionEstudianteError extends CalificacionEstudianteState {
+  final String mensaje;
+  const CalificacionEstudianteError(this.mensaje);
+}
+
+// Provider para la calificación del estudiante.
+final calificacionEstudianteProvider =
+    NotifierProvider<CalificacionEstudianteNotifier, CalificacionEstudianteState>(
+  CalificacionEstudianteNotifier.new,
+);
+
+// Notifier para manejar la calificación del estudiante.
+class CalificacionEstudianteNotifier extends Notifier<CalificacionEstudianteState> {
+  late final CalificacionRepository _repository;
+
+  @override
+  CalificacionEstudianteState build() {
+    _repository = ref.watch(calificacionRepositoryProvider);
+    return const CalificacionEstudianteInicial();
+  }
+
+  // Verifica si el estudiante ya calificó el evento.
+  Future<void> verificarCalificacion({
+    required String idPerfil,
+    required int idEvento,
+  }) async {
+    state = const CalificacionEstudianteCargando();
+
+    try {
+      final calificacion = await _repository.obtenerCalificacionEstudiante(
+        idPerfil: idPerfil,
+        idEvento: idEvento,
+      );
+
+      if (calificacion != null) {
+        state = CalificacionEstudianteCalificado(calificacion);
+      } else {
+        state = const CalificacionEstudianteNoCalificado();
+      }
+    } catch (e) {
+      state = CalificacionEstudianteError(
+        e.toString().replaceAll('Exception: ', ''),
+      );
+    }
+  }
+
+  // Crea una nueva calificación.
+  Future<bool> calificar({
+    required String idPerfil,
+    required int idEvento,
+    required int calificacion,
+    String? comentario,
+  }) async {
+    final estadoAnterior = state;
+    state = const CalificacionEstudianteCargando();
+
+    try {
+      final nuevaCalificacion = await _repository.crearCalificacion(
+        idPerfil: idPerfil,
+        idEvento: idEvento,
+        calificacion: calificacion,
+        comentario: comentario,
+      );
+
+      state = CalificacionEstudianteCalificado(nuevaCalificacion);
+      return true;
+    } catch (e) {
+      state = estadoAnterior;
+      return false;
+    }
+  }
+
+  // Reinicia el estado.
+  void reiniciar() {
+    state = const CalificacionEstudianteInicial();
+  }
+}
+
 // Estado para la lista de calificaciones.
 sealed class CalificacionesEventoState {
   const CalificacionesEventoState();

@@ -33,6 +33,20 @@ abstract class CalificacionRepository {
   Future<({int total, double promedio})> obtenerResumenCalificaciones({
     required int idEvento,
   });
+
+  // Verifica si un estudiante ya calificó un evento.
+  Future<CalificacionModel?> obtenerCalificacionEstudiante({
+    required String idPerfil,
+    required int idEvento,
+  });
+
+  // Crea una nueva calificación para un evento.
+  Future<CalificacionModel> crearCalificacion({
+    required String idPerfil,
+    required int idEvento,
+    required int calificacion,
+    String? comentario,
+  });
 }
 
 // Implementación del repositorio de calificaciones usando Supabase.
@@ -117,6 +131,57 @@ class CalificacionRepositoryImpl implements CalificacionRepository {
       return (total: total, promedio: promedio);
     } on PostgrestException catch (e) {
       throw Exception('Error al obtener resumen: ${e.message}');
+    }
+  }
+
+  @override
+  Future<CalificacionModel?> obtenerCalificacionEstudiante({
+    required String idPerfil,
+    required int idEvento,
+  }) async {
+    try {
+      final respuesta = await _supabase
+          .from('Calificacion')
+          .select()
+          .eq('id_perfil', idPerfil)
+          .eq('id_evento', idEvento)
+          .maybeSingle();
+
+      if (respuesta == null) return null;
+      return CalificacionModel.fromMap(respuesta);
+    } on PostgrestException catch (e) {
+      throw Exception('Error al verificar calificación: ${e.message}');
+    }
+  }
+
+  @override
+  Future<CalificacionModel> crearCalificacion({
+    required String idPerfil,
+    required int idEvento,
+    required int calificacion,
+    String? comentario,
+  }) async {
+    try {
+      final datos = {
+        'id_perfil': idPerfil,
+        'id_evento': idEvento,
+        'calificacion': calificacion,
+        'comentario': comentario,
+        'fecha': DateTime.now().toUtc().toIso8601String(),
+      };
+
+      final respuesta = await _supabase
+          .from('Calificacion')
+          .insert(datos)
+          .select()
+          .single();
+
+      return CalificacionModel.fromMap(respuesta);
+    } on PostgrestException catch (e) {
+      if (e.code == '23505') {
+        throw Exception('Ya has calificado este evento');
+      }
+      throw Exception('Error al crear calificación: ${e.message}');
     }
   }
 }

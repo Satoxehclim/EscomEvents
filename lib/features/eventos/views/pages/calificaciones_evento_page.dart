@@ -461,7 +461,9 @@ class _TarjetaCalificacion extends StatelessWidget {
                         ? Icons.star_rounded
                         : Icons.star_outline_rounded,
                     color: index < calificacion.calificacion
-                        ? Colors.amber.shade600
+                        ? (isDark
+                            ? AppColors.darkPrimary
+                            : AppColors.lightPrimary)
                         : Colors.grey.shade400,
                     size: 24,
                   );
