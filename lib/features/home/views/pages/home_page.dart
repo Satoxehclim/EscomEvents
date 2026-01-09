@@ -159,7 +159,7 @@ class HomePage extends ConsumerWidget {
                 titulo: 'Perfil',
                 color: const Color(0xFFF59E0B), // Amber.
                 onTap: () {
-                  
+                  context.push(RutasApp.perfil);
                 },
               ),
             ),

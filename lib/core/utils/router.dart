@@ -1,5 +1,7 @@
+import 'package:escomevents_app/features/home/models/perfil_model.dart';
 import 'package:escomevents_app/features/home/views/pages/bienvenida_page.dart';
 import 'package:escomevents_app/features/home/views/pages/home_page.dart';
+import 'package:escomevents_app/features/home/views/pages/perfil_page.dart';
 import 'package:escomevents_app/features/usuarios/views/pages/lista_usuarios_page.dart';
 import 'package:escomevents_app/features/auth/view/pages/login_page.dart';
 import 'package:escomevents_app/features/auth/view/pages/recuperar_page.dart';
@@ -14,6 +16,7 @@ import 'package:escomevents_app/features/eventos/views/pages/mis_eventos_page.da
 import 'package:escomevents_app/main.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:riverpod/src/framework.dart';
 
 // Nombres de las rutas de la aplicación.
 abstract class RutasApp {
@@ -22,6 +25,7 @@ abstract class RutasApp {
   static const String registro = '/registro';
   static const String recuperar = '/recuperar';
   static const String inicio = '/inicio';
+  static const String perfil = '/perfil';
   static const String eventos = '/eventos';
   static const String misEventos = '/mis-eventos';
   static const String misEventosEstudiante = '/mis-eventos-estudiante';
@@ -123,6 +127,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RutasApp.recuperar,
         name: 'recuperar',
         builder: (context, state) => const RecuperarPage(),
+      ),
+      // Ruta de perfil
+      GoRoute(
+        path: RutasApp.perfil,
+        name: 'perfil',
+        builder: (context, state) {
+          return PerfilPage();
+        }
       ),
       // Shell route para la navegación con BottomNavigationBar.
       ShellRoute(

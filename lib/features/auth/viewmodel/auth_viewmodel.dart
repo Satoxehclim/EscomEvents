@@ -14,7 +14,7 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 final authProvider = NotifierProvider<AuthNotifier, AuthState>(AuthNotifier.new);
 
 // Provider del perfil del usuario actual.
-final perfilActualProvider = Provider<PerfilModel?>((ref) {
+final Provider<PerfilModel?> perfilActualProvider = Provider<PerfilModel?>((ref) {
   final authState = ref.watch(authProvider);
   if (authState is AuthExitoso) {
     return authState.perfil;
