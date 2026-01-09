@@ -39,7 +39,7 @@ class UsuarioRepositoryImpl implements UsuarioRepository {
   final SupabaseClient _supabase;
 
   UsuarioRepositoryImpl({SupabaseClient? supabase})
-      : _supabase = supabase ?? Supabase.instance.client;
+    : _supabase = supabase ?? Supabase.instance.client;
 
   @override
   Future<ResultadoUsuarios> obtenerUsuarios({
@@ -74,8 +74,8 @@ class UsuarioRepositoryImpl implements UsuarioRepository {
           .toList();
 
       // Determina si hay más páginas.
-      final hayMas = usuarios.length == tamanoPagina &&
-          (desde + usuarios.length) < total;
+      final hayMas =
+          usuarios.length == tamanoPagina && (desde + usuarios.length) < total;
 
       return ResultadoUsuarios(
         usuarios: usuarios,
@@ -91,9 +91,7 @@ class UsuarioRepositoryImpl implements UsuarioRepository {
   @override
   Future<int> obtenerTotalUsuarios({FiltroUsuarios? filtro}) async {
     try {
-      var query = _supabase
-          .from('Perfil')
-          .select('id_perfil');
+      var query = _supabase.from('Perfil').select('id_perfil');
 
       if (filtro?.rol != null) {
         query = query.eq('rol', _rolAString(filtro!.rol!));

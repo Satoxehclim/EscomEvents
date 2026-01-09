@@ -118,6 +118,15 @@ class AuthNotifier extends Notifier<AuthState> {
       state = const AuthNoAutenticado();
     }
   }
+
+  // Recupera la contraseña del usuario.
+  Future<bool> recuperarContrasena({
+    required String correo,
+    required String contrasena,
+  }) async {
+    return await _repository.recuperarContrasena(correo: correo, contrasena: contrasena);
+  }
+
 }
 
 // Estado para la invitación de usuarios.

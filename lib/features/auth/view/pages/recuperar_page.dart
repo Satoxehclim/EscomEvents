@@ -7,17 +7,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-// Página de registro de nuevos usuarios.
-class RegistroPage extends ConsumerStatefulWidget {
-  const RegistroPage({super.key});
+class RecuperarPage extends ConsumerStatefulWidget {
+  const RecuperarPage({super.key});
 
   @override
-  ConsumerState<RegistroPage> createState() => _RegistroPageState();
+  ConsumerState<RecuperarPage> createState() => _RecuperarPageState();
 }
 
-class _RegistroPageState extends ConsumerState<RegistroPage> {
+class _RecuperarPageState extends ConsumerState<RecuperarPage> {
   final _formKey = GlobalKey<FormState>();
-  final _nombreController = TextEditingController();
   final _correoController = TextEditingController();
   final _contrasenaController = TextEditingController();
   final _confirmarContrasenaController = TextEditingController();
@@ -26,98 +24,66 @@ class _RegistroPageState extends ConsumerState<RegistroPage> {
 
   @override
   void dispose() {
-    _nombreController.dispose();
     _correoController.dispose();
     _contrasenaController.dispose();
     _confirmarContrasenaController.dispose();
     super.dispose();
   }
 
-  Future<void> _registrar() async {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _recuperacionContrasena() async {
+    if (_correoController.text.trim().isEmpty ||
+        !_correoController.text.contains('@') ||
+        !_correoController.text.endsWith('alumno.ipn.mx')) {
+      final theme = Theme.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Por favor ingresa un correo institucional válido para recuperar tu contraseña.',
+          ),
+          backgroundColor: theme.colorScheme.error,
+        ),
+      );
+      return;
+    }
 
-    final exito = await ref.read(authProvider.notifier).registrar(
-          nombre: _nombreController.text.trim(),
-          correo: _correoController.text.trim(),
-          contrasena: _contrasenaController.text,
-        );
+    final bool exito = await ref
+        .read(authProvider.notifier)
+        .recuperarContrasena(correo: _correoController.text.trim(), contrasena: _contrasenaController.text.trim());
 
     if (!mounted) return;
 
+    final theme = Theme.of(context);
     if (exito) {
-      final perfil = ref.read(perfilActualProvider);
-      
-      if (perfil?.requiereConfirmacion == true) {
-        // Muestra un diálogo indicando que debe confirmar su correo.
-        _mostrarDialogoConfirmacion();
-      } else {
-        // Si no requiere confirmación, navega a inicio.
-        context.go(RutasApp.inicio);
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Se ha enviado un correo confirmando el cambio de contraseña.',
+          ),
+          backgroundColor: theme.colorScheme.primary,
+        ),
+      );
+      context.pop();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Error al cambiar la contraseña. Verifica los datos e intenta nuevamente.',
+          ),
+          backgroundColor: theme.colorScheme.error,
+        ),
+      );
     }
   }
 
-  void _mostrarDialogoConfirmacion() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.mark_email_unread, color: Colors.green),
-            SizedBox(width: 8),
-            Text('¡Registro exitoso!'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Hemos enviado un correo de confirmación a:',
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _correoController.text.trim(),
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Por favor revisa tu bandeja de entrada y haz clic en el enlace para activar tu cuenta.',
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Si no lo encuentras, revisa tu carpeta de spam.',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              context.go(RutasApp.login);
-            },
-            child: const Text('Ir a iniciar sesión'),
-          ),
-        ],
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final ThemeData theme = Theme.of(context);
     final authState = ref.watch(authProvider);
-    final estaCargando = authState is AuthCargando;
+    final bool estaCargando = authState is AuthCargando;
 
-    // Escucha cambios de estado para mostrar errores.
     ref.listen<AuthState>(authProvider, (anterior, nuevo) {
       if (nuevo is AuthError) {
-        // Cierra cualquier SnackBar anterior.
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -125,7 +91,6 @@ class _RegistroPageState extends ConsumerState<RegistroPage> {
             backgroundColor: theme.colorScheme.error,
           ),
         );
-        // Limpia el error para evitar que se muestre de nuevo.
         ref.read(authProvider.notifier).limpiarError();
       }
     });
@@ -152,9 +117,9 @@ class _RegistroPageState extends ConsumerState<RegistroPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Título.
+                  // Titulo
                   Text(
-                    'Crear cuenta',
+                    'Recuperar Contraseña',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
@@ -163,39 +128,22 @@ class _RegistroPageState extends ConsumerState<RegistroPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Completa tus datos para registrarte',
+                    'Ingresa tu correo institucional para recuperar tu contraseña',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6),
                     ),
                   ),
-                  const SizedBox(height: 32),
-
-                  // Campo de nombre.
+                  const SizedBox(height: 40),
+                  // Campo de correo
                   CustomInputField(
-                    label: 'Nombre completo',
-                    hintText: 'Tu nombre',
-                    prefixIcon: Icons.person_outlined,
-                    controller: _nombreController,
-                    validator: (valor) {
-                      if (valor == null || valor.isEmpty) {
-                        return 'Por favor ingresa tu nombre';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Campo de correo.
-                  CustomInputField(
-                    label: 'Correo electrónico',
-                    hintText: 'ejemplo@correo.com',
+                    label: 'Correo Institucional',
+                    hintText: 'Tu correo institucional',
                     prefixIcon: Icons.email_outlined,
                     controller: _correoController,
-                    keyboardType: TextInputType.emailAddress,
-                    validator: (valor) {
+                    validator: (valor){
                       if (valor == null || valor.isEmpty) {
-                        return 'Por favor ingresa tu correo';
+                        return 'Por favor ingresa tu correo institucional';
                       }
                       if (!valor.contains('@') || !valor.endsWith('alumno.ipn.mx')) {
                         return 'Por favor ingresa un correo institucional válido';
@@ -203,9 +151,7 @@ class _RegistroPageState extends ConsumerState<RegistroPage> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 16),
-
-                  // Campo de contraseña.
+                  const SizedBox(height: 24),
                   CustomInputField(
                     label: 'Contraseña',
                     hintText: '••••••••',
@@ -268,10 +214,10 @@ class _RegistroPageState extends ConsumerState<RegistroPage> {
 
                   // Botón de registro.
                   CustomButton(
-                    texto: 'Registrarse',
-                    onPressed: estaCargando ? null : _registrar,
+                    texto: 'Cambiar Contraseña',
+                    onPressed: estaCargando ? null : _recuperacionContrasena,
                     cargando: estaCargando,
-                    iconoInicio: Icons.person_add,
+                    iconoInicio: Icons.password,
                   ),
                   const SizedBox(height: 16),
 
@@ -295,12 +241,34 @@ class _RegistroPageState extends ConsumerState<RegistroPage> {
                       ),
                     ],
                   ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '¿No tienes una cuenta?',
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          context.pop();
+                          context.push(RutasApp.registro);
+                        },
+                        child: Text(
+                          'Regístrate',
+                          style: TextStyle(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
           ),
-        ),
-      ),
+        )
+      )
     );
   }
 }

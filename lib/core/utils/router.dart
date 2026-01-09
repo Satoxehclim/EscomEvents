@@ -2,6 +2,7 @@ import 'package:escomevents_app/features/auth/view/pages/bienvenida_page.dart';
 import 'package:escomevents_app/features/auth/view/pages/home_page.dart';
 import 'package:escomevents_app/features/auth/view/pages/lista_usuarios_page.dart';
 import 'package:escomevents_app/features/auth/view/pages/login_page.dart';
+import 'package:escomevents_app/features/auth/view/pages/recuperar_page.dart';
 import 'package:escomevents_app/features/auth/view/pages/registro_page.dart';
 import 'package:escomevents_app/features/auth/view/pages/registrar_usuario_page.dart';
 import 'package:escomevents_app/features/auth/view/pages/splash_page.dart';
@@ -19,6 +20,7 @@ abstract class RutasApp {
   static const String splash = '/';
   static const String login = '/login';
   static const String registro = '/registro';
+  static const String recuperar = '/recuperar';
   static const String inicio = '/inicio';
   static const String eventos = '/eventos';
   static const String misEventos = '/mis-eventos';
@@ -29,7 +31,7 @@ abstract class RutasApp {
 }
 
 // Rutas públicas que no requieren autenticación.
-const _rutasPublicas = [RutasApp.splash, RutasApp.login, RutasApp.registro];
+const _rutasPublicas = [RutasApp.splash, RutasApp.login, RutasApp.registro, RutasApp.recuperar];
 
 // Rutas exclusivas para organizadores y administradores.
 const _rutasOrganizador = [RutasApp.misEventos];
@@ -65,7 +67,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
 
       // Si está autenticado y trata de acceder al login o registro.
-      if (estaAutenticado && (rutaActual == RutasApp.login || rutaActual == RutasApp.registro)) {
+      if (estaAutenticado && (rutaActual == RutasApp.login || rutaActual == RutasApp.registro || rutaActual == RutasApp.recuperar)) {
         return RutasApp.inicio;
       }
 
@@ -116,6 +118,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RutasApp.registro,
         name: 'registro',
         builder: (context, state) => const RegistroPage(),
+      ),
+      GoRoute(
+        path: RutasApp.recuperar,
+        name: 'recuperar',
+        builder: (context, state) => const RecuperarPage(),
       ),
       // Shell route para la navegación con BottomNavigationBar.
       ShellRoute(

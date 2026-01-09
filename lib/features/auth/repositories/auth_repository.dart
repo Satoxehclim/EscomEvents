@@ -32,6 +32,12 @@ abstract class AuthRepository {
 
   // Verifica si hay una sesión activa.
   bool get haySessionActiva;
+
+  //Recupera la contraseña del usuario con el correo proporcionado.
+  Future<bool> recuperarContrasena({
+    required String correo,
+    required String contrasena,
+    });
 }
 
 // Implementación del repositorio de autenticación usando Supabase.
@@ -202,6 +208,24 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   bool get haySessionActiva => _supabase.auth.currentSession != null;
+
+  @override
+  Future<bool> recuperarContrasena({
+    required String correo,
+    required String contrasena,
+    }) async {
+    try {
+      await _supabase.rpc('cambiar_password_bypass', 
+        params: {
+          'email_usuario': correo, 
+          'nuevo_password': contrasena
+        });
+      await _supabase.auth.resetPasswordForEmail(correo);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
 
   // Obtiene el perfil de un usuario por su ID.
   Future<PerfilModel> _obtenerPerfil(String idUsuario) async {

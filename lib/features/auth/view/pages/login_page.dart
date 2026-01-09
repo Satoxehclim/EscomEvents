@@ -155,7 +155,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     alignment: Alignment.centerRight,
                     child: TextButton(
                       onPressed: () {
-                        // TODO: Implementar recuperación de contraseña.
+                        context.push(RutasApp.recuperar);
                       },
                       child: Text(
                         '¿Olvidaste tu contraseña?',
