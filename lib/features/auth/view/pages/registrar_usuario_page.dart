@@ -1,7 +1,7 @@
 import 'package:escomevents_app/core/utils/paleta.dart';
 import 'package:escomevents_app/core/view/widgets/custom_button.dart';
 import 'package:escomevents_app/core/view/widgets/custom_form_field.dart';
-import 'package:escomevents_app/features/auth/view/pages/bienvenida_page.dart';
+import 'package:escomevents_app/features/home/views/pages/bienvenida_page.dart';
 import 'package:escomevents_app/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

@@ -1,4 +1,4 @@
-import 'package:escomevents_app/features/auth/view/pages/bienvenida_page.dart';
+import 'package:escomevents_app/features/home/views/pages/bienvenida_page.dart';
 import 'package:escomevents_app/features/eventos/models/evento_model.dart';
 import 'package:escomevents_app/features/eventos/models/filtro_eventos_model.dart';
 import 'package:escomevents_app/features/eventos/viewmodel/evento_viewmodel.dart';

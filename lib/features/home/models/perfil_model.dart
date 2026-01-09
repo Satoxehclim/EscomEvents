@@ -1,4 +1,4 @@
-import 'package:escomevents_app/features/auth/view/pages/bienvenida_page.dart';
+import 'package:escomevents_app/features/home/views/pages/bienvenida_page.dart';
 
 //Modelo que representa el perfil de un usuario.
 class PerfilModel {

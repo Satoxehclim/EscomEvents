@@ -1,6 +1,6 @@
 import 'package:escomevents_app/core/utils/paleta.dart';
 import 'package:escomevents_app/core/utils/router.dart';
-import 'package:escomevents_app/features/auth/view/pages/bienvenida_page.dart';
+import 'package:escomevents_app/features/home/views/pages/bienvenida_page.dart';
 import 'package:escomevents_app/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -159,7 +159,7 @@ class HomePage extends ConsumerWidget {
                 titulo: 'Perfil',
                 color: const Color(0xFFF59E0B), // Amber.
                 onTap: () {
-                  // TODO: Navegar a perfil.
+                  
                 },
               ),
             ),

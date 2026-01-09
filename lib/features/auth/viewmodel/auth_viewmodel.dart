@@ -1,7 +1,7 @@
 import 'package:escomevents_app/features/auth/models/auth_state.dart';
-import 'package:escomevents_app/features/auth/models/perfil_model.dart';
+import 'package:escomevents_app/features/home/models/perfil_model.dart';
 import 'package:escomevents_app/features/auth/repositories/auth_repository.dart';
-import 'package:escomevents_app/features/auth/view/pages/bienvenida_page.dart';
+import 'package:escomevents_app/features/home/views/pages/bienvenida_page.dart';
 import 'package:escomevents_app/features/eventos/viewmodel/categoria_viewmodel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

@@ -1,10 +1,10 @@
 import 'package:escomevents_app/core/utils/paleta.dart';
 import 'package:escomevents_app/core/utils/router.dart';
 import 'package:escomevents_app/core/view/widgets/custom_button.dart';
-import 'package:escomevents_app/features/auth/models/filtro_usuarios_model.dart';
-import 'package:escomevents_app/features/auth/models/perfil_model.dart';
-import 'package:escomevents_app/features/auth/view/pages/bienvenida_page.dart';
-import 'package:escomevents_app/features/auth/viewmodel/usuario_viewmodel.dart';
+import 'package:escomevents_app/features/usuarios/models/filtro_usuarios_model.dart';
+import 'package:escomevents_app/features/home/models/perfil_model.dart';
+import 'package:escomevents_app/features/home/views/pages/bienvenida_page.dart';
+import 'package:escomevents_app/features/usuarios/viewmodel/usuario_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';

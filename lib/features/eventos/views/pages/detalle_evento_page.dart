@@ -1,5 +1,5 @@
-import 'package:escomevents_app/features/auth/models/perfil_model.dart';
-import 'package:escomevents_app/features/auth/view/pages/bienvenida_page.dart';
+import 'package:escomevents_app/features/home/models/perfil_model.dart';
+import 'package:escomevents_app/features/home/views/pages/bienvenida_page.dart';
 import 'package:escomevents_app/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:escomevents_app/features/eventos/models/evento_model.dart';
 import 'package:escomevents_app/features/eventos/viewmodel/asistencia_viewmodel.dart';

@@ -1,11 +1,11 @@
-import 'package:escomevents_app/features/auth/view/pages/bienvenida_page.dart';
-import 'package:escomevents_app/features/auth/view/pages/home_page.dart';
-import 'package:escomevents_app/features/auth/view/pages/lista_usuarios_page.dart';
+import 'package:escomevents_app/features/home/views/pages/bienvenida_page.dart';
+import 'package:escomevents_app/features/home/views/pages/home_page.dart';
+import 'package:escomevents_app/features/usuarios/views/pages/lista_usuarios_page.dart';
 import 'package:escomevents_app/features/auth/view/pages/login_page.dart';
 import 'package:escomevents_app/features/auth/view/pages/recuperar_page.dart';
 import 'package:escomevents_app/features/auth/view/pages/registro_page.dart';
 import 'package:escomevents_app/features/auth/view/pages/registrar_usuario_page.dart';
-import 'package:escomevents_app/features/auth/view/pages/splash_page.dart';
+import 'package:escomevents_app/core/view/pages/splash_page.dart';
 import 'package:escomevents_app/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:escomevents_app/features/eventos/views/pages/admin_eventos_page.dart';
 import 'package:escomevents_app/features/eventos/views/pages/eventos.dart';

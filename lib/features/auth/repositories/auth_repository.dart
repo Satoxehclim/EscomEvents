@@ -1,5 +1,5 @@
-import 'package:escomevents_app/features/auth/models/perfil_model.dart';
-import 'package:escomevents_app/features/auth/view/pages/bienvenida_page.dart';
+import 'package:escomevents_app/features/home/models/perfil_model.dart';
+import 'package:escomevents_app/features/home/views/pages/bienvenida_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 // Repositorio abstracto para operaciones de autenticación.

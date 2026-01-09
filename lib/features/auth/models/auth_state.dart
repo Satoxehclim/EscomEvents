@@ -1,4 +1,4 @@
-import 'package:escomevents_app/features/auth/models/perfil_model.dart';
+import 'package:escomevents_app/features/home/models/perfil_model.dart';
 
 // Estados posibles de la autenticación.
 sealed class AuthState {

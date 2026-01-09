@@ -1,6 +1,6 @@
-import 'package:escomevents_app/features/auth/models/filtro_usuarios_model.dart';
-import 'package:escomevents_app/features/auth/models/perfil_model.dart';
-import 'package:escomevents_app/features/auth/repositories/usuario_repository.dart';
+import 'package:escomevents_app/features/usuarios/models/filtro_usuarios_model.dart';
+import 'package:escomevents_app/features/home/models/perfil_model.dart';
+import 'package:escomevents_app/features/usuarios/repositories/usuario_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // Provider del repositorio de usuarios.

@@ -1,6 +1,6 @@
-import 'package:escomevents_app/features/auth/models/filtro_usuarios_model.dart';
-import 'package:escomevents_app/features/auth/models/perfil_model.dart';
-import 'package:escomevents_app/features/auth/view/pages/bienvenida_page.dart';
+import 'package:escomevents_app/features/usuarios/models/filtro_usuarios_model.dart';
+import 'package:escomevents_app/features/home/models/perfil_model.dart';
+import 'package:escomevents_app/features/home/views/pages/bienvenida_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 // Resultado paginado de usuarios.
