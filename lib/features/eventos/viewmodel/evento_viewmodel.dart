@@ -60,8 +60,8 @@ class EditarEventoError extends EditarEventoState {
 // Provider para editar eventos.
 final editarEventoProvider =
     NotifierProvider<EditarEventoNotifier, EditarEventoState>(
-  EditarEventoNotifier.new,
-);
+      EditarEventoNotifier.new,
+    );
 
 // Notifier para manejar la edición de eventos.
 class EditarEventoNotifier extends Notifier<EditarEventoState> {
@@ -147,8 +147,8 @@ class EliminarEventoError extends EliminarEventoState {
 // Provider para eliminar eventos.
 final eliminarEventoProvider =
     NotifierProvider<EliminarEventoNotifier, EliminarEventoState>(
-  EliminarEventoNotifier.new,
-);
+      EliminarEventoNotifier.new,
+    );
 
 // Notifier para manejar la eliminación de eventos.
 class EliminarEventoNotifier extends Notifier<EliminarEventoState> {
@@ -208,8 +208,8 @@ class CancelarEventoError extends CancelarEventoState {
 // Provider para cancelar eventos.
 final cancelarEventoProvider =
     NotifierProvider<CancelarEventoNotifier, CancelarEventoState>(
-  CancelarEventoNotifier.new,
-);
+      CancelarEventoNotifier.new,
+    );
 
 // Notifier para manejar la cancelación de eventos.
 class CancelarEventoNotifier extends Notifier<CancelarEventoState> {
@@ -246,8 +246,8 @@ class CancelarEventoNotifier extends Notifier<CancelarEventoState> {
 // Provider para crear eventos.
 final crearEventoProvider =
     NotifierProvider<CrearEventoNotifier, CrearEventoState>(
-  CrearEventoNotifier.new,
-);
+      CrearEventoNotifier.new,
+    );
 
 // Notifier para manejar la creación de eventos.
 class CrearEventoNotifier extends Notifier<CrearEventoState> {
@@ -358,8 +358,8 @@ class EventosOrganizadorError extends EventosOrganizadorState {
 // Provider para los eventos del organizador.
 final eventosOrganizadorProvider =
     NotifierProvider<EventosOrganizadorNotifier, EventosOrganizadorState>(
-  EventosOrganizadorNotifier.new,
-);
+      EventosOrganizadorNotifier.new,
+    );
 
 // Notifier para manejar los eventos del organizador con paginación.
 class EventosOrganizadorNotifier extends Notifier<EventosOrganizadorState> {
@@ -455,9 +455,7 @@ class EventosOrganizadorNotifier extends Notifier<EventosOrganizadorState> {
   void agregarEvento(EventModel evento) {
     final estadoActual = state;
     if (estadoActual is EventosOrganizadorExitoso) {
-      state = estadoActual.copyWith(
-        eventos: [evento, ...estadoActual.eventos],
-      );
+      state = estadoActual.copyWith(eventos: [evento, ...estadoActual.eventos]);
     }
   }
 
@@ -551,8 +549,8 @@ class EventosPublicosError extends EventosPublicosState {
 // Provider para los eventos públicos.
 final eventosPublicosProvider =
     NotifierProvider<EventosPublicosNotifier, EventosPublicosState>(
-  EventosPublicosNotifier.new,
-);
+      EventosPublicosNotifier.new,
+    );
 
 // Notifier para manejar la lista de eventos públicos.
 class EventosPublicosNotifier extends Notifier<EventosPublicosState> {
@@ -701,8 +699,8 @@ class EventosAdminError extends EventosAdminState {
 // Provider para los eventos de administración.
 final eventosAdminProvider =
     NotifierProvider<EventosAdminNotifier, EventosAdminState>(
-  EventosAdminNotifier.new,
-);
+      EventosAdminNotifier.new,
+    );
 
 // Notifier para manejar la lista de eventos para administración.
 class EventosAdminNotifier extends Notifier<EventosAdminState> {
@@ -847,8 +845,8 @@ class ValidarEventoError extends ValidarEventoState {
 // Provider para validar/rechazar eventos.
 final validarEventoProvider =
     NotifierProvider<ValidarEventoNotifier, ValidarEventoState>(
-  ValidarEventoNotifier.new,
-);
+      ValidarEventoNotifier.new,
+    );
 
 // Notifier para manejar la validación de eventos.
 class ValidarEventoNotifier extends Notifier<ValidarEventoState> {
@@ -953,8 +951,8 @@ class EventosEstudianteError extends EventosEstudianteState {
 // Provider para los eventos con asistencia del estudiante.
 final eventosEstudianteProvider =
     NotifierProvider<EventosEstudianteNotifier, EventosEstudianteState>(
-  EventosEstudianteNotifier.new,
-);
+      EventosEstudianteNotifier.new,
+    );
 
 // Notifier para manejar la lista de eventos del estudiante.
 class EventosEstudianteNotifier extends Notifier<EventosEstudianteState> {
@@ -1057,5 +1055,150 @@ class EventosEstudianteNotifier extends Notifier<EventosEstudianteState> {
     _filtrosActuales = null;
     _idPerfil = null;
     state = const EventosEstudianteInicial();
+  }
+}
+
+// =============================================================================
+// Provider para obtener el próximo evento según el rol del usuario
+// =============================================================================
+
+/// Estado para el próximo evento.
+sealed class ProximoEventoState {
+  const ProximoEventoState();
+}
+
+/// Estado inicial del próximo evento.
+final class ProximoEventoInicial extends ProximoEventoState {
+  const ProximoEventoInicial();
+}
+
+/// Estado de carga del próximo evento.
+final class ProximoEventoCargando extends ProximoEventoState {
+  const ProximoEventoCargando();
+}
+
+/// Estado exitoso con el próximo evento (puede ser null si no hay ninguno).
+final class ProximoEventoExitoso extends ProximoEventoState {
+  /// El próximo evento encontrado, null si no hay ninguno.
+  final EventModel? evento;
+
+  /// La etiqueta a mostrar según el rol.
+  final String etiqueta;
+
+  /// La ruta a la que navegar al presionar "Ver todos".
+  final String ruta;
+
+  const ProximoEventoExitoso({
+    required this.evento,
+    required this.etiqueta,
+    required this.ruta,
+  });
+}
+
+/// Estado de error del próximo evento.
+final class ProximoEventoError extends ProximoEventoState {
+  /// Mensaje de error.
+  final String mensaje;
+
+  const ProximoEventoError(this.mensaje);
+}
+
+/// Provider para obtener el próximo evento según el rol del usuario.
+final proximoEventoProvider =
+    NotifierProvider<ProximoEventoNotifier, ProximoEventoState>(
+      ProximoEventoNotifier.new,
+    );
+
+/// Notifier para manejar el estado del próximo evento.
+class ProximoEventoNotifier extends Notifier<ProximoEventoState> {
+  late final EventoRepository _repository;
+
+  @override
+  ProximoEventoState build() {
+    _repository = ref.watch(eventoRepositoryProvider);
+    return const ProximoEventoInicial();
+  }
+
+  /// Carga el próximo evento según el rol del usuario.
+  Future<void> cargarProximoEvento({
+    required String rol,
+    required String idPerfil,
+  }) async {
+    state = const ProximoEventoCargando();
+    try {
+      EventModel? proximoEvento;
+      String etiqueta;
+      String ruta;
+      final ahora = DateTime.now();
+
+      switch (rol) {
+        case 'estudiante':
+          // Eventos a los que el estudiante marcó asistencia, futuros.
+          final resultado = await _repository.obtenerEventosConAsistencia(
+            idPerfil: idPerfil,
+            tamanoPagina: 100,
+          );
+          final eventosFuturos =
+              resultado.datos
+                  .where((e) => e.fecha.isAfter(ahora) && !e.cancelado)
+                  .toList()
+                ..sort((a, b) => a.fecha.compareTo(b.fecha));
+          proximoEvento = eventosFuturos.isNotEmpty
+              ? eventosFuturos.first
+              : null;
+          etiqueta = 'Tu próximo evento';
+          ruta = '/mis-eventos-estudiante';
+
+        case 'organizador':
+          // Eventos aprobados del organizador, futuros.
+          final resultado = await _repository.obtenerEventosPorOrganizador(
+            idPerfil,
+            tamanoPagina: 100,
+          );
+          final eventosFuturos =
+              resultado.datos
+                  .where(
+                    (e) => e.fecha.isAfter(ahora) && e.validado && !e.cancelado,
+                  )
+                  .toList()
+                ..sort((a, b) => a.fecha.compareTo(b.fecha));
+          proximoEvento = eventosFuturos.isNotEmpty
+              ? eventosFuturos.first
+              : null;
+          etiqueta = 'Tu próximo evento aprobado';
+          ruta = '/mis-eventos';
+
+        case 'administrador':
+          // Eventos pendientes de validación.
+          final resultado = await _repository.obtenerEventosAdmin(
+            tamanoPagina: 100,
+          );
+          final eventosPendientes =
+              resultado.datos.where((e) => !e.validado && !e.cancelado).toList()
+                ..sort((a, b) => a.fecha.compareTo(b.fecha));
+          proximoEvento = eventosPendientes.isNotEmpty
+              ? eventosPendientes.first
+              : null;
+          etiqueta = 'Próximo evento pendiente de validación';
+          ruta = '/admin-eventos';
+
+        default:
+          etiqueta = 'Próximo evento';
+          ruta = '/eventos';
+      }
+
+      state = ProximoEventoExitoso(
+        evento: proximoEvento,
+        etiqueta: etiqueta,
+        ruta: ruta,
+      );
+    } catch (e) {
+      state = ProximoEventoError('Error al cargar el próximo evento: $e');
+    }
+  }
+
+  /// Reinicia el estado.
+  void reiniciar() {
+    state = const ProximoEventoInicial();
   }
 }
