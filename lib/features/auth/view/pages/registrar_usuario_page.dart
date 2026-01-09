@@ -157,8 +157,8 @@ class _RegistrarUsuarioPageState extends ConsumerState<RegistrarUsuarioPage> {
 
                 // Campo de correo.
                 CustomInputField(
-                  label: 'Correo institucional',
-                  hintText: 'correo@ipn.mx',
+                  label: 'Correo electrónico',
+                  hintText: 'correo@gmail.com',
                   prefixIcon: Icons.email_outlined,
                   controller: _correoController,
                   keyboardType: TextInputType.emailAddress,
@@ -166,7 +166,10 @@ class _RegistrarUsuarioPageState extends ConsumerState<RegistrarUsuarioPage> {
                     if (valor == null || valor.isEmpty) {
                       return 'Por favor ingresa el correo';
                     }
-                    if ( !valor.contains('.') || (!valor.endsWith("@alumno.ipn.mx") && !valor.endsWith('@ipn.mx')) ) {
+                    final RegExp emailRegex = RegExp(
+                        r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+                    );
+                    if ( !emailRegex.hasMatch(valor)) {
                       return 'Ingresa un correo válido';
                     }
                     return null;
@@ -176,7 +179,7 @@ class _RegistrarUsuarioPageState extends ConsumerState<RegistrarUsuarioPage> {
 
                 // Campo de confirmar correo.
                 CustomInputField(
-                  label: 'Confirmar correo institucional',
+                  label: 'Confirmar correo electrónico',
                   hintText: 'Repite el correo',
                   prefixIcon: Icons.email_outlined,
                   controller: _confirmarCorreoController,
