@@ -1,4 +1,5 @@
 import 'package:escomevents_app/features/eventos/models/asistencia_model.dart';
+import 'package:escomevents_app/features/eventos/models/asistente_model.dart';
 import 'package:escomevents_app/features/eventos/repositories/asistencia_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -176,5 +177,68 @@ class EscaneoAsistenciaNotifier extends Notifier<void> {
       }
       return EscaneoError(mensaje);
     }
+  }
+}
+
+// Estado de la lista de asistentes de un evento.
+sealed class ListaAsistentesState {
+  const ListaAsistentesState();
+}
+
+class ListaAsistentesInicial extends ListaAsistentesState {
+  const ListaAsistentesInicial();
+}
+
+class ListaAsistentesCargando extends ListaAsistentesState {
+  const ListaAsistentesCargando();
+}
+
+class ListaAsistentesExito extends ListaAsistentesState {
+  final List<AsistenteModel> asistentes;
+  const ListaAsistentesExito(this.asistentes);
+}
+
+class ListaAsistentesError extends ListaAsistentesState {
+  final String mensaje;
+  const ListaAsistentesError(this.mensaje);
+}
+
+// Provider para la lista de asistentes de un evento.
+final listaAsistentesProvider =
+    NotifierProvider<ListaAsistentesNotifier, ListaAsistentesState>(
+  ListaAsistentesNotifier.new,
+);
+
+// Notifier para manejar la lista de asistentes.
+class ListaAsistentesNotifier extends Notifier<ListaAsistentesState> {
+  late final AsistenciaRepository _repository;
+
+  @override
+  ListaAsistentesState build() {
+    _repository = ref.watch(asistenciaRepositoryProvider);
+    return const ListaAsistentesInicial();
+  }
+
+  // Carga la lista de asistentes del evento.
+  Future<void> cargarAsistentes({
+    required int idEvento,
+    required bool entradaLibre,
+  }) async {
+    state = const ListaAsistentesCargando();
+
+    try {
+      final asistentes = await _repository.obtenerAsistentesEvento(
+        idEvento: idEvento,
+        entradaLibre: entradaLibre,
+      );
+      state = ListaAsistentesExito(asistentes);
+    } catch (e) {
+      state = ListaAsistentesError('Error al cargar asistentes: $e');
+    }
+  }
+
+  // Reinicia el estado.
+  void reiniciar() {
+    state = const ListaAsistentesInicial();
   }
 }

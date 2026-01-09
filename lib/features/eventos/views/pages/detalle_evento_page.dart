@@ -5,6 +5,7 @@ import 'package:escomevents_app/features/eventos/models/evento_model.dart';
 import 'package:escomevents_app/features/eventos/viewmodel/asistencia_viewmodel.dart';
 import 'package:escomevents_app/features/eventos/viewmodel/evento_viewmodel.dart';
 import 'package:escomevents_app/features/eventos/views/pages/calificaciones_evento_page.dart';
+import 'package:escomevents_app/features/eventos/views/pages/lista_asistentes_page.dart';
 import 'package:escomevents_app/features/eventos/views/widgets/detalle_evento_widgets.dart';
 import 'package:escomevents_app/features/eventos/views/widgets/escaner_asistencia.dart';
 import 'package:escomevents_app/features/eventos/views/widgets/formulario_editar_evento.dart';
@@ -180,6 +181,15 @@ class _DetalleEventoPageState extends ConsumerState<DetalleEventoPage> {
     return false;
   }
 
+  // Determina si se muestra el botón de ver asistentes.
+  bool get _mostrarBotonAsistentes {
+    // Solo para organizadores viendo sus propios eventos validados.
+    if (_rolActual != RolUsuario.organizador) return false;
+    if (widget.origen != OrigenDetalle.misEventos) return false;
+    if (!_eventoActual.validado) return false;
+    return true;
+  }
+
   // Abre el escáner de asistencia.
   void _abrirEscanerAsistencia() {
     Navigator.of(context).push(
@@ -199,6 +209,19 @@ class _DetalleEventoPageState extends ConsumerState<DetalleEventoPage> {
         builder: (context) => CalificacionesEventoPage(
           idEvento: _eventoActual.id,
           nombreEvento: _eventoActual.nombre,
+        ),
+      ),
+    );
+  }
+
+  // Abre la página de lista de asistentes.
+  void _abrirListaAsistentes() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => ListaAsistentesPage(
+          idEvento: _eventoActual.id,
+          nombreEvento: _eventoActual.nombre,
+          entradaLibre: _eventoActual.entradaLibre,
         ),
       ),
     );
@@ -318,6 +341,14 @@ class _DetalleEventoPageState extends ConsumerState<DetalleEventoPage> {
                     const SizedBox(height: 24),
                     BotonVerCalificaciones(
                       onPressed: _abrirCalificaciones,
+                    ),
+                  ],
+
+                  // Botón de ver asistentes para organizadores.
+                  if (_mostrarBotonAsistentes) ...[
+                    const SizedBox(height: 16),
+                    BotonVerAsistentes(
+                      onPressed: _abrirListaAsistentes,
                     ),
                   ],
 

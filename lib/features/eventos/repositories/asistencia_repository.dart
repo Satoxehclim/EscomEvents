@@ -1,6 +1,7 @@
 import 'dart:developer';
 
 import 'package:escomevents_app/features/eventos/models/asistencia_model.dart';
+import 'package:escomevents_app/features/eventos/models/asistente_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -37,6 +38,14 @@ abstract class AsistenciaRepository {
   Future<AsistenciaModel> marcarAsistencia({
     required String idPerfil,
     required int idEvento,
+  });
+
+  // Obtiene la lista de asistentes de un evento con información del perfil.
+  // Si entradaLibre es true, obtiene todos los registrados.
+  // Si entradaLibre es false, obtiene solo los que tienen asistio = 1.
+  Future<List<AsistenteModel>> obtenerAsistentesEvento({
+    required int idEvento,
+    required bool entradaLibre,
   });
 }
 
@@ -237,6 +246,45 @@ class AsistenciaRepositoryImpl implements AsistenciaRepository {
         error: e,
       );
       rethrow;
+    }
+  }
+
+  @override
+  Future<List<AsistenteModel>> obtenerAsistentesEvento({
+    required int idEvento,
+    required bool entradaLibre,
+  }) async {
+    try {
+      // Consulta con join a la tabla Perfil para obtener nombre y avatar.
+      PostgrestFilterBuilder query = _supabase
+          .from('Asistencia')
+          .select('*, perfil:Perfil!id_perfil(id_perfil, nombre, avatar)')
+          .eq('id_evento', idEvento);
+
+      // Si no es entrada libre, solo obtener los que tienen asistio = 1.
+      if (!entradaLibre) {
+        query = query.eq('asistio', 1);
+      }
+
+      final response = await query;
+
+      return (response as List)
+          .map((e) => AsistenteModel.fromMap(e))
+          .toList();
+    } on PostgrestException catch (e) {
+      log(
+        'Error al obtener asistentes del evento: ${e.message}',
+        name: 'AsistenciaRepository',
+        error: e,
+      );
+      return [];
+    } catch (e) {
+      log(
+        'Error inesperado al obtener asistentes del evento: $e',
+        name: 'AsistenciaRepository',
+        error: e,
+      );
+      return [];
     }
   }
 }
